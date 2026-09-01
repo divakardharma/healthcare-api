@@ -79,4 +79,58 @@ class AuthController
             );
         }
     }
+
+
+    public function changePassword(
+    array $data,
+    int $userId
+): void {
+    if (
+        empty($data['current_password']) ||
+        empty($data['new_password'])
+    ) {
+        Response::error(
+            'Current password and new password are required',
+            422
+        );
+    }
+
+    try {
+        $this->authService->changePassword(
+            $userId,
+            $data['current_password'],
+            $data['new_password']
+        );
+
+        Response::success(
+            null,
+            'Password changed successfully'
+        );
+
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+}
+
+
+public function logout(int $userId): void
+{
+    try {
+        $this->authService->logout($userId);
+
+        Response::success(
+            null,
+            'Logout successful'
+        );
+
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            500
+        );
+    }
+}
 }

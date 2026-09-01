@@ -67,4 +67,19 @@ class RefreshTokenRepository
 
         return $stmt->execute();
     }
+
+
+    public function revokeAllForUser(int $userId): bool
+{
+    $stmt = $this->conn->prepare(
+        "UPDATE refresh_tokens
+         SET revoked = TRUE
+         WHERE user_id = ?
+         AND revoked = FALSE"
+    );
+
+    $stmt->bind_param("i", $userId);
+
+    return $stmt->execute();
+}
 }

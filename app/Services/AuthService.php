@@ -98,4 +98,42 @@ class AuthService
             'refresh_token' => $refreshToken
         ];
     }
+
+    public function changePassword(
+        int $userId,
+        string $currentPassword,
+        string $newPassword
+    ): void {
+        // Find current user
+        $user = $this->userRepository->findById($userId);
+
+        if ($user === false) {
+            throw new Exception('User not found');
+        }
+
+        // Verify current password
+        if (!Hash::verify($currentPassword, $user['password'])) {
+            throw new Exception('Current password is incorrect');
+        }
+
+        // Hash new password
+        $hashedPassword = Hash::make($newPassword);
+
+        // Update password
+        if (!$this->userRepository->updatePassword(
+            $userId,
+            $hashedPassword
+        )) {
+            throw new Exception('Failed to update password');
+        }
+    }
+
+
+    public function logout(int $userId): void
+{
+    // Revoke all active refresh tokens
+    if (!$this->refreshTokenRepository->revokeAllForUser($userId)) {
+        throw new Exception('Failed to logout');
+    }
+}
 }
