@@ -16,23 +16,17 @@ class AuthService
         $this->refreshTokenRepository = new RefreshTokenRepository();
     }
 
-    public function register(
-        string $name,
-        string $email,
-        string $password,
-        int $tenantId
-    ): int {
-        // Check whether email already exists
+    //--------------------------------------     Register       ---------------------------------------------------
+    public function register( string $name, string $email, string $password, int $tenantId): int {
+ 
         $existingUser = $this->userRepository->findByEmail($email);
 
         if ($existingUser !== false) {
             throw new Exception('Email already registered');
         }
 
-        // Hash password
         $hashedPassword = Hash::make($password);
 
-        // Create user through repository
         return $this->userRepository->create(
             $tenantId,
             $name,
@@ -41,51 +35,33 @@ class AuthService
         );
     }
 
-    public function login(
-        string $email,
-        string $password,
-        string $jwtSecret
-    ): array {
-        // Find user
+    //--------------------------------------     Login       ---------------------------------------------------
+    public function login(  string $email,  string $password,  string $jwtSecret ): array {
+
         $user = $this->userRepository->findByEmail($email);
 
         if ($user === false) {
             throw new Exception('Invalid email or password');
         }
 
-        // Verify password
         if (!Hash::verify($password, $user['password'])) {
             throw new Exception('Invalid email or password');
         }
 
-        // JWT payload
         $payload = [
             'user_id' => $user['id'],
             'tenant_id' => $user['tenant_id']
         ];
 
-        // Generate access token
-        $accessToken = JWT::generateAccessToken(
-            $payload,
-            $jwtSecret
-        );
 
-        // Generate refresh token
-        $refreshToken = JWT::generateRefreshToken(
-            $payload,
-            $jwtSecret
-        );
+        $accessToken = JWT::generateAccessToken( $payload, $jwtSecret );
 
-        // Hash refresh token before storing
+        $refreshToken = JWT::generateRefreshToken( $payload, $jwtSecret );
+
         $tokenHash = hash('sha256', $refreshToken);
 
-        // Refresh token expires in 7 days
-        $expiresAt = date(
-            'Y-m-d H:i:s',
-            time() + 604800
-        );
+        $expiresAt = date( 'Y-m-d H:i:s', time() + 604800 );
 
-        // Store refresh token hash
         $this->refreshTokenRepository->create(
             $user['id'],
             $tokenHash,
@@ -98,4 +74,41 @@ class AuthService
             'refresh_token' => $refreshToken
         ];
     }
+
+    //--------------------------------------     Change Password       ---------------------------------------------------
+
+    public function changePassword(int $userId,  string $currentPassword,  string $newPassword ): void
+     {
+
+        $user = $this->userRepository->findById($userId);
+
+        if ($user === false) {
+            throw new Exception('User not found');
+        }
+
+        if (!Hash::verify($currentPassword, $user['password'])) {
+            throw new Exception('Current password is incorrect');
+        }
+
+        $hashedPassword = Hash::make($newPassword);
+
+
+        if (!$this->userRepository->updatePassword(
+            $userId,
+            $hashedPassword
+        )) {
+            throw new Exception('Failed to update password');
+        }
+    }
+
+
+//--------------------------------------------          Logout          ---------------------------------------------------
+
+    public function logout(int $userId): void{
+
+    // Revoke all active refresh tokens
+    if (!$this->refreshTokenRepository->revokeAllForUser($userId)) {
+        throw new Exception('Failed to logout');
+    }
+}
 }

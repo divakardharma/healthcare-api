@@ -7,7 +7,7 @@ class CsrfMiddleware
     public static function handle(): void
     {
         $method = $_SERVER['REQUEST_METHOD'];
-
+        
         // GET requests usually don't change data,
         // so CSRF validation is not required.
         if ($method === 'GET') {
@@ -17,8 +17,8 @@ class CsrfMiddleware
         $headers = getallheaders();
 
         if (!isset($headers['X-CSRF-Token'])) {
-            http_response_code(403);
 
+            http_response_code(403);
             echo json_encode([
                 'status' => false,
                 'message' => 'CSRF token required'
@@ -31,11 +31,9 @@ class CsrfMiddleware
 
         $storedToken = $_SESSION['csrf_token'] ?? null;
 
-        if ($storedToken === null ||
-            !CSRF::verify($token, $storedToken)) {
+        if ($storedToken === null ||!CSRF::verify($token, $storedToken)) {
 
             http_response_code(403);
-
             echo json_encode([
                 'status' => false,
                 'message' => 'Invalid CSRF token'

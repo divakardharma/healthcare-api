@@ -12,11 +12,8 @@ class JWT
         return self::generate($payload, $secret, 604800);
     }
 
-    private static function generate(
-        array $payload,
-        string $secret,
-        int $expiry
-    ): string {
+    private static function generate( array $payload, string $secret, int $expiry ): string {
+
         $header = [
             'alg' => 'HS256',
             'typ' => 'JWT'
@@ -25,13 +22,9 @@ class JWT
         $payload['iat'] = time();
         $payload['exp'] = time() + $expiry;
 
-        $headerEncoded = self::base64UrlEncode(
-            json_encode($header)
-        );
+        $headerEncoded = self::base64UrlEncode( json_encode($header) );
 
-        $payloadEncoded = self::base64UrlEncode(
-            json_encode($payload)
-        );
+        $payloadEncoded = self::base64UrlEncode( json_encode($payload) );
 
         $signature = hash_hmac(
             'sha256',
@@ -42,15 +35,12 @@ class JWT
 
         $signatureEncoded = self::base64UrlEncode($signature);
 
-        return $headerEncoded . '.' .
-               $payloadEncoded . '.' .
-               $signatureEncoded;
+        return $headerEncoded . '.' . $payloadEncoded . '.' . $signatureEncoded;
+        
     }
 
-    public static function verify(
-        string $token,
-        string $secret
-    ): array|false {
+    public static function verify(string $token,string $secret ): array|false {
+
         $parts = explode('.', $token);
 
         if (count($parts) !== 3) {

@@ -9,8 +9,8 @@ class AuthMiddleware
         $headers = getallheaders();
 
         if (!isset($headers['Authorization'])) {
-            http_response_code(401);
 
+            http_response_code(401);
             echo json_encode([
                 'status' => false,
                 'message' => 'Authorization token required'
@@ -22,8 +22,8 @@ class AuthMiddleware
         $authorization = $headers['Authorization'];
 
         if (!str_starts_with($authorization, 'Bearer ')) {
-            http_response_code(401);
 
+            http_response_code(401);
             echo json_encode([
                 'status' => false,
                 'message' => 'Invalid authorization format'
@@ -37,8 +37,8 @@ class AuthMiddleware
         $payload = JWT::verify($token, $secret);
 
         if ($payload === false) {
+            
             http_response_code(401);
-
             echo json_encode([
                 'status' => false,
                 'message' => 'Invalid or expired token'
