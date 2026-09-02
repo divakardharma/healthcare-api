@@ -1,55 +1,127 @@
 <?php
 
-require_once __DIR__ . '/../Config/database.php';
-
 class UserRepository
 {
-    private PDO $pdo;
+    private PDO $db;
 
-    public function __construct() {
-        global $pdo;
-        $this->pdo = $pdo;
-    }
-
-    // ---------------------------------------- findByEmail ------------------------------------------
-
-    public function findByEmail(string $email): array|false
+    public function __construct(PDO $db)
     {
-        $stmt = $this->pdo->prepare("SELECT * FROM users WHERE email = ? LIMIT 1");
-        $stmt->execute([$email]);
-
-        return $stmt->fetch() ?: false;
+        $this->db = $db;
     }
 
-    // ----------------------------------------- findById --------------------------------------------
-
-    public function findById(int $userId): array|false
+    public function create(array $data): int
     {
-        $stmt = $this->pdo->prepare( "SELECT * FROM users WHERE id = ? LIMIT 1" );
-        $stmt->execute([$userId]);
+        $sql = "INSERT INTO users (tenant_id, name, email, password)
+                VALUES (:tenant_id, :name, :email, :password)";
 
-        return $stmt->fetch() ?: false;
+        $stmt = $this->db->prepare($sql);
+
+        $stmt->execute([
+            ':tenant_id' => $data['tenant_id'],
+            ':name'      => $data['name'],
+            ':email'     => $data['email'],
+            ':password'  => $data['password']
+        ]);
+
+        return (int) $this->db->lastInsertId();
     }
 
-    // --------------------------------------- Create ------------------------------------------------
+    public function update(int $id, array $data): bool
+    {
+        $fields = [];
+        $params = [':id' => $id];
 
-    public function create( int $tenantId, string $name, string $email, string $password): int {
+        foreach (['name', 'email'] as $column) {
+            if (array_key_exists($column, $data)) {
+                $fields[] = "{$column} = :{$column}";
+                $params[":{$column}"] = $data[$column];
+            }
+        }
 
-        $stmt = $this->pdo->prepare( "INSERT INTO users (tenant_id, name, email, password) VALUES (?, ?, ?, ?)" );
-        $stmt->execute([ $tenantId, $name, $email, $password ]);
+        if (empty($fields)) {
+            return false;
+        }
 
-        return (int) $this->pdo->lastInsertId();
+        $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = :id";
+        $stmt = $this->db->prepare($sql);
+
+        return $stmt->execute($params);
     }
 
-    // ------------------------------------------- UpdatePassword ------------------------------------
-
-    public function updatePassword( int $userId, string $hashedPassword ): bool {
-
-        $stmt = $this->pdo->prepare(  "UPDATE users SET password = ? WHERE id = ?" );
+    public function updatePassword(int $id, string $hashedPassword): bool
+    {
+        $stmt = $this->db->prepare(
+            "UPDATE users SET password = :password WHERE id = :id"
+        );
 
         return $stmt->execute([
-            $hashedPassword,
-            $userId
+            ':password' => $hashedPassword,
+            ':id' => $id
         ]);
     }
+
+    public function delete(int $id): bool
+    {
+        $stmt = $this->db->prepare("DELETE FROM users WHERE id = :id");
+
+        return $stmt->execute([':id' => $id]);
+    }
+
+    public function findByEmail(string $email)
+    {
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE email = :email");
+        $stmt->execute([':email' => $email]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function findById(int $id)
+    {
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE id = :id");
+        $stmt->execute([':id' => $id]);
+
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
+    public function findAllByTenant(int $tenantId): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT * FROM users WHERE tenant_id = :tenant_id ORDER BY id DESC"
+        );
+        $stmt->execute([':tenant_id' => $tenantId]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+ public function findAllByTenantAndRole(int $tenantId, string $roleName): array
+{
+    $stmt = $this->db->prepare(
+        "SELECT u.* FROM users u
+         INNER JOIN user_roles ur ON ur.user_id = u.id
+         INNER JOIN roles r ON r.id = ur.role_id
+         WHERE u.tenant_id = :tenant_id AND r.name = :role_name
+         ORDER BY u.id DESC"
+    );
+
+    $stmt->execute([
+        ':tenant_id' => $tenantId,
+        ':role_name' => $roleName
+    ]);
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+public function countByTenantId(int $tenantId): int
+{
+    $stmt = $this->db->prepare(
+        "SELECT COUNT(*) FROM users WHERE tenant_id = :tenant_id"
+    );
+
+    $stmt->execute([
+        ':tenant_id' => $tenantId
+    ]);
+
+    return (int)$stmt->fetchColumn();
+}
+
 }
