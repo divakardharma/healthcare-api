@@ -1,4 +1,5 @@
 <?php
+session_start();
 
 require_once __DIR__ . '/../Repositories/UserRepository.php';
 require_once __DIR__ . '/../Repositories/RefreshTokenRepository.php';
@@ -55,6 +56,10 @@ class AuthService
 
 
         $accessToken = JWT::generateAccessToken( $payload, $jwtSecret );
+
+        $_SESSION['access_token'] = $accessToken;
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['tenant_id'] = $user['tenant_id'];
 
         $refreshToken = JWT::generateRefreshToken( $payload, $jwtSecret );
 
