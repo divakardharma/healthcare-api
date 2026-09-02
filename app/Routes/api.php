@@ -53,11 +53,19 @@ if ($method === 'POST' && str_contains($path, '/login')) {
 
 if ($method === 'POST' && str_contains($path, '/change-password')) {
 
-    require_once __DIR__ . '/../Middleware/AuthMiddleware.php';
+require_once __DIR__ . '/../Middleware/AuthMiddleware.php';
+require_once __DIR__ . '/../Middleware/TenantMiddleware.php';
 
-    $jwtSecret = $_ENV['JWT_SECRET'];
+$jwtSecret = $_ENV['JWT_SECRET'];
 
-    $payload = AuthMiddleware::handle($jwtSecret);
+$payload = AuthMiddleware::handle($jwtSecret);
+
+$userTenantId = (int) $payload['tenant_id'];
+
+TenantMiddleware::validate(
+    $userTenantId,
+    $userTenantId
+);
 
     $data = json_decode(
         file_get_contents('php://input'),

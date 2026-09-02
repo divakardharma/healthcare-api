@@ -109,11 +109,13 @@ class AuthService
 
 //--------------------------------------------          Logout          ---------------------------------------------------
 
-    public function logout(int $userId): void{
-
-    // Revoke all active refresh tokens
+public function logout(int $userId): void
+{
     if (!$this->refreshTokenRepository->revokeAllForUser($userId)) {
         throw new Exception('Failed to logout');
     }
-}
+
+    session_unset();
+    session_destroy();
+}   
 }
