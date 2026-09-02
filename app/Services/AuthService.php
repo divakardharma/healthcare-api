@@ -2,20 +2,24 @@
 
 require_once __DIR__ . '/../Repositories/UserRepository.php';
 require_once __DIR__ . '/../Repositories/RefreshTokenRepository.php';
+require_once __DIR__ . '/../Repositories/RoleRepository.php';
 require_once __DIR__ . '/../Security/Hash.php';
 require_once __DIR__ . '/../Security/JWT.php';
 require_once __DIR__ . '/../Security/CSRF.php';
+require_once __DIR__ . '/../Config/database.php';
 
 class AuthService
 {
     private UserRepository $userRepository;
     private RefreshTokenRepository $refreshTokenRepository;
 
-    public function __construct()
-    {
-        $this->userRepository = new UserRepository();
-        $this->refreshTokenRepository = new RefreshTokenRepository();
-    }
+  public function __construct()
+{
+    require_once __DIR__ . '/../Config/database.php';
+
+    $this->userRepository = new UserRepository($pdo);
+    $this->refreshTokenRepository = new RefreshTokenRepository();
+}
 
     //--------------------------------------     Register       ---------------------------------------------------
     public function register( string $name, string $email, string $password, int $tenantId): int {
@@ -28,12 +32,12 @@ class AuthService
 
         $hashedPassword = Hash::make($password);
 
-        return $this->userRepository->create(
-            $tenantId,
-            $name,
-            $email,
-            $hashedPassword
-        );
+      return $this->userRepository->create([
+    'tenant_id' => $tenantId,
+    'name' => $name,
+    'email' => $email,
+    'password' => $hashedPassword
+]);
     }
 
     //--------------------------------------     Login       ---------------------------------------------------
