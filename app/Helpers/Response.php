@@ -2,11 +2,8 @@
 
 class Response
 {
-    public static function success(
-        mixed $data = null,
-        string $message = 'Success',
-        int $code = 200
-    ): void {
+    public static function success( mixed $data = null, string $message = 'Success', int $code = 200): void
+     {
         http_response_code($code);
 
         echo json_encode([
@@ -18,11 +15,8 @@ class Response
         exit;
     }
 
-    public static function error(
-        string $message = 'Something went wrong',
-        int $code = 400,
-        mixed $errors = null
-    ): void {
+    public static function error( string $message = 'Something went wrong',  int $code = 400,  mixed $errors = null): void {
+        
         http_response_code($code);
 
         $response = [

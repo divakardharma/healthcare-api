@@ -7,130 +7,79 @@ class AuthController
 {
     private AuthService $authService;
 
-    public function __construct()
-    {
+    public function __construct(){
         $this->authService = new AuthService();
     }
+ 
+ //----------------------------------------------     REGISTER        ----------------------------------------
+    public function register(array $data): void{
 
-    public function register(array $data): void
-    {
-        if (
-            empty($data['name']) ||
-            empty($data['email']) ||
-            empty($data['password']) ||
-            empty($data['tenant_id'])
-        ) {
-            Response::error(
-                'Name, email, password and tenant_id are required',
-                422
-            );
+        if (empty($data['name']) || empty($data['email']) || empty($data['password']) || empty($data['tenant_id'])) 
+        {
+            Response::error('Name, email, password and tenant_id are required', 422);
         }
 
         try {
-            $userId = $this->authService->register(
-                $data['name'],
-                $data['email'],
-                $data['password'],
+            $userId = $this->authService->register($data['name'],$data['email'], $data['password'],
                 (int) $data['tenant_id']
             );
 
-            Response::success(
-                ['user_id' => $userId],
-                'User registered successfully',
-                201
-            );
+            Response::success(['user_id' => $userId], 'User registered successfully', 201 );
 
         } catch (Exception $e) {
-            Response::error(
-                $e->getMessage(),
-                409
-            );
+                Response::error(  $e->getMessage(), 409 );
         }
     }
+
+ //----------------------------------------------       LOGIN       ----------------------------------------
 
     public function login(array $data, string $jwtSecret): void
     {
-        if (
-            empty($data['email']) ||
-            empty($data['password'])
-        ) {
-            Response::error(
-                'Email and password are required',
-                422
-            );
+        if ( empty($data['email']) || empty($data['password']) )  {
+
+            Response::error( 'Email and password are required',  422 );
         }
 
         try {
-            $result = $this->authService->login(
-                $data['email'],
-                $data['password'],
-                $jwtSecret
-            );
+            $result = $this->authService->login( $data['email'], $data['password'], $jwtSecret);
 
-            Response::success(
-                $result,
-                'Login successful'
-            );
+            Response::success( $result, 'Login successful' );
 
         } catch (Exception $e) {
-            Response::error(
-                $e->getMessage(),
-                401
-            );
+            Response::error( $e->getMessage(),401);
         }
     }
 
+ //----------------------------------------------     CHANGE PASSWORD        ----------------------------------------
 
-    public function changePassword(
-    array $data,
-    int $userId
-): void {
-    if (
-        empty($data['current_password']) ||
-        empty($data['new_password'])
-    ) {
-        Response::error(
-            'Current password and new password are required',
-            422
-        );
+    public function changePassword( array $data,int $userId ): void {
+
+         if (empty($data['current_password']) || empty($data['new_password'])) {
+
+            Response::error('Current password and new password are required', 422 );
     }
 
     try {
-        $this->authService->changePassword(
-            $userId,
-            $data['current_password'],
-            $data['new_password']
-        );
+        $this->authService->changePassword( $userId, $data['current_password'], $data['new_password'] );
 
-        Response::success(
-            null,
-            'Password changed successfully'
-        );
+        Response::success( null, 'Password changed successfully' );
 
     } catch (Exception $e) {
-        Response::error(
-            $e->getMessage(),
-            400
-        );
+        Response::error( $e->getMessage(),  400);
     }
 }
 
+ //----------------------------------------------         LOGOUT           ----------------------------------------
 
 public function logout(int $userId): void
 {
     try {
         $this->authService->logout($userId);
 
-        Response::success(
-            null,
-            'Logout successful'
-        );
+        Response::success( null, 'Logout successful' );
 
     } catch (Exception $e) {
-        Response::error(
-            $e->getMessage(),
-            500
-        );
+        Response::error($e->getMessage(),  500 );
     }
 }
 }
