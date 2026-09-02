@@ -4,53 +4,50 @@ require_once __DIR__ . '/../Config/database.php';
 
 class RefreshTokenRepository
 {
-    private mysqli $conn;
+    private PDO $pdo;
 
-    public function __construct() {
-        global $conn;
-        $this->conn = $conn;
-    }
- 
-    //---------------------------------------       CREATE       -------------------------------------------
-
-    public function create( int $userId, string $tokenHash, string $expiresAt ): int {
-
-        $stmt = $this->conn->prepare( "INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)" );
-        $stmt->bind_param( "iss", $userId, $tokenHash, $expiresAt );
-        $stmt->execute();
-
-        return $stmt->insert_id;
+    public function __construct(){
+        global $pdo;
+        $this->pdo = $pdo;
     }
 
-     //---------------------------------------    Find by Token       -------------------------------------------
+    // --------------------------------------- CREATE -------------------------------------------
+
+    public function create(int $userId,string $tokenHash,string $expiresAt): int {
+
+        $stmt = $this->pdo->prepare( "INSERT INTO refresh_tokens  (user_id, token_hash, expires_at)  VALUES (?, ?, ?)" );
+
+        $stmt->execute([  $userId,  $tokenHash,  $expiresAt ]);
+
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    // --------------------------------------- Find by Token ------------------------------------
 
     public function findByTokenHash(string $tokenHash): array|false
     {
-        $stmt = $this->conn->prepare( "SELECT *  FROM refresh_tokens  WHERE token_hash = ?  AND revoked = FALSE  LIMIT 1");
-        $stmt->bind_param("s", $tokenHash);
-        $stmt->execute();
-        $result = $stmt->get_result();
+        $stmt = $this->pdo->prepare("SELECT * FROM refresh_tokens WHERE token_hash = ? AND revoked = FALSE LIMIT 1");
+        $stmt->execute([$tokenHash]);
 
-        return $result->fetch_assoc();
+        return $stmt->fetch() ?: false;
     }
 
-     //---------------------------------------    REVOKE      -------------------------------------------
+    // --------------------------------------- REVOKE -------------------------------------------
 
     public function revoke(int $id): bool
     {
-        $stmt = $this->conn->prepare( "UPDATE refresh_tokens  SET revoked = TRUE  WHERE id = ?" );
-        $stmt->bind_param("i", $id);
+        $stmt = $this->pdo->prepare( "UPDATE refresh_tokens   SET revoked = TRUE   WHERE id = ?" );
 
-        return $stmt->execute();
+        return $stmt->execute([$id]);
     }
 
- //---------------------------------------    Revoke All fro users      -------------------------------------------
+    // --------------------------------------- Revoke All for User -------------------------------
 
     public function revokeAllForUser(int $userId): bool
-   {
-       $stmt = $this->conn->prepare( "UPDATE refresh_tokens  SET revoked = TRUE  WHERE user_id = ?  AND revoked = FALSE" );
-       $stmt->bind_param("i", $userId);
+    {
+        $stmt = $this->pdo->prepare(  "UPDATE refresh_tokens  SET revoked = TRUE  WHERE user_id = ?  AND revoked = FALSE" );
 
-       return $stmt->execute();
+        return $stmt->execute([$userId]);
+
     }
 }
