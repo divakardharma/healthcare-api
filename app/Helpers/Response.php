@@ -18,9 +18,12 @@ class Response
             'data' => $data
         ];
 
+        $body = json_encode($response) ?: '{}';
+        $aesKey = (string) ($_ENV['AES_KEY'] ?? '');
+
         $encrypted = AES::encrypt(
-            json_encode($response),
-            $_ENV['AES_KEY']
+            $body,
+            $aesKey
         );
 
         echo json_encode([
@@ -47,9 +50,12 @@ class Response
             $response['errors'] = $errors;
         }
 
+        $body = json_encode($response) ?: '{}';
+        $aesKey = (string) ($_ENV['AES_KEY'] ?? '');
+
         $encrypted = AES::encrypt(
-            json_encode($response),
-            $_ENV['AES_KEY']
+            $body,
+            $aesKey
         );
 
         echo json_encode([
