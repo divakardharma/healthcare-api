@@ -3,6 +3,7 @@ session_start();
 
 require_once __DIR__ . '/../Repositories/UserRepository.php';
 require_once __DIR__ . '/../Repositories/RefreshTokenRepository.php';
+require_once __DIR__ . '/../Repositories/RoleRepository.php';
 require_once __DIR__ . '/../Security/Hash.php';
 require_once __DIR__ . '/../Security/JWT.php';
 
