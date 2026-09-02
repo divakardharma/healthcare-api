@@ -17,6 +17,8 @@ class AuthService
 {
     require_once __DIR__ . '/../Config/database.php';
 
+     global $pdo;
+
     $this->userRepository = new UserRepository($pdo);
     $this->refreshTokenRepository = new RefreshTokenRepository();
 }
