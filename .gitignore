@@ -1,1 +1,17 @@
+# Environment
 .env
+
+# Backend
+/backend/.env
+
+# Node / React
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.vite/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
