@@ -1,29 +1,99 @@
 <?php
 
 require_once __DIR__ . '/../Controllers/AuthController.php';
-require_once __DIR__ . '/../Controllers/UserController.php';
-require_once __DIR__ . '/../Controllers/PatientController.php';
-require_once __DIR__ . '/../Controllers/AppointmentController.php';
-require_once __DIR__ . '/../Controllers/CalendarController.php';
+require_once __DIR__ . '/../Middleware/CsrfMiddleware.php';
+require_once __DIR__ . '/../Security/AES.php';
+require_once __DIR__ . '/../Helpers/Response.php';
+
 
 $method = $_SERVER['REQUEST_METHOD'];
-$path = $_SERVER['REQUEST_URI'];
-
-$authController = new AuthController();
-$userController = new UserController();
-$patientController = new PatientController();
-$appointmentController = new AppointmentController();
-$calendarController = new CalendarController();
+$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 
-//--------------------------------------------      REGISTER      -------------------------------------------------
+// ---------------------------------------------
+// ENCRYPTED REQUEST DATA
+// ---------------------------------------------
 
-if ($method === 'POST' && str_contains($path, '/register')) {
-
-    $data = json_decode(
+function getEncryptedData(): array
+{
+    $body = json_decode(
         file_get_contents('php://input'),
         true
     );
+
+    if (
+        !isset($body['payload']) ||
+        !is_string($body['payload'])
+    ) {
+        Response::error('Encrypted payload required', 400);
+    }
+
+    $decrypted = AES::decrypt(
+        $body['payload'],
+        $_ENV['AES_KEY']
+    );
+
+    if ($decrypted === false) {
+        Response::error('Invalid encrypted payload', 400);
+    }
+
+    $data = json_decode($decrypted, true);
+
+    if (!is_array($data)) {
+        Response::error('Invalid decrypted data', 400);
+    }
+
+    return $data;
+}
+
+
+// ---------------------------------------------
+// CSRF TOKEN
+// ---------------------------------------------
+
+if ($method === 'GET' && str_contains($path, '/csrf-token')) {
+
+    require_once __DIR__ . '/../Security/CSRF.php';
+
+    $token = CSRF::generate();
+
+    $_SESSION['csrf_token'] = $token;
+
+    echo json_encode([
+        'status' => true,
+        'message' => 'CSRF token generated',
+        'data' => [
+            'csrf_token' => $token
+        ]
+    ]);
+
+    exit;
+}
+
+
+// ---------------------------------------------
+// CSRF VALIDATION
+// ---------------------------------------------
+
+if (
+    !str_contains($path, '/login') &&
+    !str_contains($path, '/register') &&
+    !str_contains($path, '/refresh')
+) {
+    CsrfMiddleware::handle();
+}
+
+
+$authController = new AuthController();
+
+
+// ---------------------------------------------
+// REGISTER
+// ---------------------------------------------
+
+if ($method === 'POST' && str_contains($path, '/register')) {
+
+    $data = getEncryptedData();
 
     $authController->register($data);
 
@@ -31,14 +101,13 @@ if ($method === 'POST' && str_contains($path, '/register')) {
 }
 
 
-// --------------------------------------------------     LOGIN     ----------------------------------------------------
+// ---------------------------------------------
+// LOGIN
+// ---------------------------------------------
 
 if ($method === 'POST' && str_contains($path, '/login')) {
 
-    $data = json_decode(
-        file_get_contents('php://input'),
-        true
-    );
+    $data = getEncryptedData();
 
     $jwtSecret = $_ENV['JWT_SECRET'];
 
@@ -51,20 +120,46 @@ if ($method === 'POST' && str_contains($path, '/login')) {
 }
 
 
-// ---------------------------------------------     CHANGE PASSWORD      ---------------------------------------------------
+// ---------------------------------------------
+// REFRESH
+// ---------------------------------------------
+
+if ($method === 'POST' && str_contains($path, '/refresh')) {
+
+    $data = getEncryptedData();
+
+    $jwtSecret = $_ENV['JWT_SECRET'];
+
+    $authController->refresh(
+        $data,
+        $jwtSecret
+    );
+
+    exit;
+}
+
+
+// ---------------------------------------------
+// CHANGE PASSWORD
+// ---------------------------------------------
 
 if ($method === 'POST' && str_contains($path, '/change-password')) {
 
     require_once __DIR__ . '/../Middleware/AuthMiddleware.php';
+    require_once __DIR__ . '/../Middleware/TenantMiddleware.php';
 
     $jwtSecret = $_ENV['JWT_SECRET'];
 
     $payload = AuthMiddleware::handle($jwtSecret);
 
-    $data = json_decode(
-        file_get_contents('php://input'),
-        true
+    $userTenantId = (int) $payload['tenant_id'];
+
+    TenantMiddleware::validate(
+        $userTenantId,
+        $userTenantId
     );
+
+    $data = getEncryptedData();
 
     $userId = (int) $payload['user_id'];
 
@@ -77,7 +172,9 @@ if ($method === 'POST' && str_contains($path, '/change-password')) {
 }
 
 
-// -----------------------------------------------         LOGOUT       ---------------------------------------------------------
+// ---------------------------------------------
+// LOGOUT
+// ---------------------------------------------
 
 if ($method === 'POST' && str_contains($path, '/logout')) {
 
@@ -85,10 +182,8 @@ if ($method === 'POST' && str_contains($path, '/logout')) {
 
     $jwtSecret = $_ENV['JWT_SECRET'];
 
-    // Validate access token
     $payload = AuthMiddleware::handle($jwtSecret);
 
-    // Get logged-in user's ID
     $userId = (int) $payload['user_id'];
 
     $authController->logout($userId);
@@ -97,196 +192,9 @@ if ($method === 'POST' && str_contains($path, '/logout')) {
 }
 
 
-// ========================================== MODULE 2 - USER MANAGEMENT ==========================================
-
-if ($method === 'GET' && str_contains($path, '/profile')) {
-
-    $userController->profile();
-
-    exit;
-}
-
-if ($method === 'PUT' && str_contains($path, '/profile')) {
-
-    $data = json_decode(
-        file_get_contents('php://input'),
-        true
-    );
-
-    $userController->updateProfile($data);
-
-    exit;
-}
-
-if ($method === 'POST' && str_contains($path, '/users')) {
-
-    $data = json_decode(
-        file_get_contents('php://input'),
-        true
-    );
-
-    $userController->create($data);
-
-    exit;
-}
-
-if ($method === 'GET' && str_contains($path, '/users')) {
-
-    $userController->index();
-
-    exit;
-}
-
-
-// ========================================== MODULE 3 - PATIENT MANAGEMENT ==========================================
-
-if ($method === 'POST' && str_contains($path, '/patients')) {
-
-    $data = json_decode(
-        file_get_contents('php://input'),
-        true
-    );
-
-    $patientController->create($data);
-
-    exit;
-}
-
-if ($method === 'GET' && str_contains($path, '/patients')) {
-
-    $patientController->index();
-
-    exit;
-}
-
-if ($method === 'GET' && preg_match('#/patients/(\d+)#', $path, $matches)) {
-
-    $patientController->show((int) $matches[1]);
-
-    exit;
-}
-
-if ($method === 'PUT' && preg_match('#/patients/(\d+)#', $path, $matches)) {
-
-    $data = json_decode(
-        file_get_contents('php://input'),
-        true
-    );
-
-    $patientController->update(
-        (int) $matches[1],
-        $data
-    );
-
-    exit;
-}
-
-if ($method === 'DELETE' && preg_match('#/patients/(\d+)#', $path, $matches)) {
-
-    $patientController->delete((int) $matches[1]);
-
-    exit;
-}
-
-
-// ========================================== MODULE 4 - APPOINTMENT MANAGEMENT ==========================================
-
-if ($method === 'POST' && str_contains($path, '/appointments')) {
-
-    $data = json_decode(
-        file_get_contents('php://input'),
-        true
-    );
-
-    $appointmentController->create($data);
-
-    exit;
-}
-
-if ($method === 'GET' && str_contains($path, '/appointments')) {
-
-    $appointmentController->index();
-
-    exit;
-}
-
-if ($method === 'GET' && preg_match('#/appointments/(\d+)#', $path, $matches)) {
-
-    $appointmentController->show((int) $matches[1]);
-
-    exit;
-}
-
-if ($method === 'PUT' && preg_match('#/appointments/(\d+)#', $path, $matches)) {
-
-    $data = json_decode(
-        file_get_contents('php://input'),
-        true
-    );
-
-    $appointmentController->update(
-        (int) $matches[1],
-        $data
-    );
-
-    exit;
-}
-
-if ($method === 'PATCH' && preg_match('#/appointments/(\d+)/status#', $path, $matches)) {
-
-    $data = json_decode(
-        file_get_contents('php://input'),
-        true
-    );
-
-    $appointmentController->updateStatus(
-        (int) $matches[1],
-        $data
-    );
-
-    exit;
-}
-
-if ($method === 'PUT' && preg_match('#/appointments/(\d+)/cancel#', $path, $matches)) {
-
-    $appointmentController->cancel((int) $matches[1]);
-
-    exit;
-}
-
-
-// ========================================== MODULE 10 - CALENDAR ==========================================
-
-if ($method === 'GET' && str_contains($path, '/calendar/day')) {
-
-    $calendarController->dayView();
-
-    exit;
-}
-
-if ($method === 'GET' && str_contains($path, '/calendar/range')) {
-
-    $calendarController->rangeView();
-
-    exit;
-}
-
-if ($method === 'GET' && str_contains($path, '/calendar/upcoming')) {
-
-    $calendarController->upcoming();
-
-    exit;
-}
-
-if ($method === 'GET' && preg_match('#/calendar/appointments/(\d+)/tooltip#', $path, $matches)) {
-
-    $calendarController->tooltip((int) $matches[1]);
-
-    exit;
-}
-
-
-// --------------------------------------------       ROUTE NOT FOUND        -------------------------------------------------------
+// ---------------------------------------------
+// ROUTE NOT FOUND
+// ---------------------------------------------
 
 http_response_code(404);
 

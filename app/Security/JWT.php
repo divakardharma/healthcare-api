@@ -4,15 +4,23 @@ class JWT
 {
     public static function generateAccessToken(array $payload, string $secret): string
     {
-        return self::generate($payload, $secret, 900);
+        $expiry = (int) ($_ENV['JWT_ACCESS_EXPIRY'] ?? 900);
+
+        return self::generate($payload, $secret, $expiry);
     }
 
     public static function generateRefreshToken(array $payload, string $secret): string
     {
-        return self::generate($payload, $secret, 604800);
+        $expiry = (int) ($_ENV['JWT_REFRESH_EXPIRY'] ?? 604800);
+
+        return self::generate($payload, $secret, $expiry);
     }
 
-    private static function generate( array $payload, string $secret, int $expiry ): string {
+    private static function generate(
+        array $payload,
+        string $secret,
+        int $expiry
+    ): string {
 
         $header = [
             'alg' => 'HS256',
@@ -22,9 +30,13 @@ class JWT
         $payload['iat'] = time();
         $payload['exp'] = time() + $expiry;
 
-        $headerEncoded = self::base64UrlEncode( json_encode($header) );
+        $headerEncoded = self::base64UrlEncode(
+            json_encode($header)
+        );
 
-        $payloadEncoded = self::base64UrlEncode( json_encode($payload) );
+        $payloadEncoded = self::base64UrlEncode(
+            json_encode($payload)
+        );
 
         $signature = hash_hmac(
             'sha256',
@@ -36,10 +48,12 @@ class JWT
         $signatureEncoded = self::base64UrlEncode($signature);
 
         return $headerEncoded . '.' . $payloadEncoded . '.' . $signatureEncoded;
-        
     }
 
-    public static function verify(string $token,string $secret ): array|false {
+    public static function verify(
+        string $token,
+        string $secret
+    ): array|false {
 
         $parts = explode('.', $token);
 
@@ -71,8 +85,10 @@ class JWT
             return false;
         }
 
-        if (isset($payloadData['exp']) &&
-            $payloadData['exp'] < time()) {
+        if (
+            isset($payloadData['exp']) &&
+            $payloadData['exp'] < time()
+        ) {
             return false;
         }
 

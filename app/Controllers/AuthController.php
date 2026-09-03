@@ -42,6 +42,8 @@ class AuthController
 
         try {
             $result = $this->authService->login( $data['email'], $data['password'], $jwtSecret);
+            
+            $result['csrf_token'] = $_SESSION['csrf_token'];
 
             Response::success( $result, 'Login successful' );
 
@@ -80,6 +82,28 @@ public function logout(int $userId): void
 
     } catch (Exception $e) {
         Response::error($e->getMessage(),  500 );
+    }
+}
+
+ //----------------------------------------------         Refresh           ----------------------------------------
+public function refresh(array $data, string $jwtSecret): void
+{
+    if (empty($data['refresh_token'])) {
+        Response::error('Refresh token is required', 422);
+    }
+
+    try {
+        $tokens = $this->authService->refresh(
+            $data['refresh_token'],
+            $jwtSecret
+        );
+
+        Response::success(
+            $tokens,
+            'Tokens refreshed successfully'
+        );
+    } catch (Exception $e) {
+        Response::error($e->getMessage(), 401);
     }
 }
 }
