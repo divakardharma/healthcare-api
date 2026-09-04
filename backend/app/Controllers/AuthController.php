@@ -7,103 +7,228 @@ class AuthController
 {
     private AuthService $authService;
 
-    public function __construct(){
-        $this->authService = new AuthService();
+    public function __construct(PDO $pdo)
+    {
+        $this->authService = new AuthService($pdo);
     }
- 
- //----------------------------------------------     REGISTER        ----------------------------------------
-    public function register(array $data): void{
 
-        if (empty($data['name']) || empty($data['email']) || empty($data['password']) || empty($data['tenant_id'])) 
-        {
-            Response::error('Name, email, password and tenant_id are required', 422);
+
+    /*
+    |--------------------------------------------------------------------------
+    | REGISTER
+    |--------------------------------------------------------------------------
+    */
+
+    public function register(array $data): void
+    {
+        if (
+            empty($data['name']) ||
+            empty($data['email']) ||
+            empty($data['password']) ||
+            empty($data['tenant_id'])
+        ) {
+            Response::error(
+                'Name, email, password and tenant_id are required',
+                422
+            );
         }
 
         try {
-            $userId = $this->authService->register($data['name'],$data['email'], $data['password'],
-                (int) $data['tenant_id']
+
+            $userId =
+                $this->authService->register(
+                    $data['name'],
+                    $data['email'],
+                    $data['password'],
+                    (int) $data['tenant_id']
+                );
+
+            Response::success(
+                ['user_id' => $userId],
+                'User registered successfully',
+                201
             );
 
-            Response::success(['user_id' => $userId], 'User registered successfully', 201 );
-
         } catch (Exception $e) {
-                Response::error(  $e->getMessage(), 409 );
+
+            Response::error(
+                $e->getMessage(),
+                409
+            );
         }
     }
 
- //----------------------------------------------       LOGIN       ----------------------------------------
 
-    public function login(array $data, string $jwtSecret): void
-    {
-        if ( empty($data['email']) || empty($data['password']) )  {
+    /*
+    |--------------------------------------------------------------------------
+    | LOGIN
+    |--------------------------------------------------------------------------
+    */
 
-            Response::error( 'Email and password are required',  422 );
+    public function login(
+        array $data,
+        string $jwtSecret,
+        int $tenantId
+    ): void {
+
+        if (
+            empty($data['email']) ||
+            empty($data['password'])
+        ) {
+            Response::error(
+                'Email and password are required',
+                422
+            );
         }
 
         try {
-            $result = $this->authService->login( $data['email'], $data['password'], $jwtSecret);
-            
-            $result['csrf_token'] = $_SESSION['csrf_token'];
 
-            Response::success( $result, 'Login successful' );
+            $result =
+                $this->authService->login(
+                    $data['email'],
+                    $data['password'],
+                    $jwtSecret,
+                    $tenantId
+                );
+
+            /*
+            |--------------------------------------------------------------------------
+            | Return CSRF Token
+            |--------------------------------------------------------------------------
+            */
+
+            $result['csrf_token'] =
+                $_SESSION['csrf_token'] ?? null;
+
+            Response::success(
+                $result,
+                'Login successful'
+            );
 
         } catch (Exception $e) {
-            Response::error( $e->getMessage(),401);
+
+            Response::error(
+                $e->getMessage(),
+                401
+            );
         }
     }
 
- //----------------------------------------------     CHANGE PASSWORD        ----------------------------------------
 
-    public function changePassword( array $data,int $userId ): void {
+    /*
+    |--------------------------------------------------------------------------
+    | CHANGE PASSWORD
+    |--------------------------------------------------------------------------
+    */
 
-         if (empty($data['current_password']) || empty($data['new_password'])) {
+    public function changePassword(
+        array $data,
+        int $userId
+    ): void {
 
-            Response::error('Current password and new password are required', 422 );
+        if (
+            empty($data['current_password']) ||
+            empty($data['new_password'])
+        ) {
+            Response::error(
+                'Current password and new password are required',
+                422
+            );
+        }
+
+        try {
+
+            $this->authService->changePassword(
+                $userId,
+                $data['current_password'],
+                $data['new_password']
+            );
+
+            Response::success(
+                null,
+                'Password changed successfully'
+            );
+
+        } catch (Exception $e) {
+
+            Response::error(
+                $e->getMessage(),
+                400
+            );
+        }
     }
 
-    try {
-        $this->authService->changePassword( $userId, $data['current_password'], $data['new_password'] );
 
-        Response::success( null, 'Password changed successfully' );
+    /*
+    |--------------------------------------------------------------------------
+    | LOGOUT
+    |--------------------------------------------------------------------------
+    */
 
-    } catch (Exception $e) {
-        Response::error( $e->getMessage(),  400);
+    public function logout(
+        int $userId
+    ): void {
+
+        try {
+
+            $this->authService->logout(
+                $userId
+            );
+
+            Response::success(
+                null,
+                'Logout successful'
+            );
+
+        } catch (Exception $e) {
+
+            Response::error(
+                $e->getMessage(),
+                500
+            );
+        }
     }
-}
 
- //----------------------------------------------         LOGOUT           ----------------------------------------
 
-public function logout(int $userId): void
-{
-    try {
-        $this->authService->logout($userId);
+    /*
+    |--------------------------------------------------------------------------
+    | REFRESH TOKEN
+    |--------------------------------------------------------------------------
+    */
 
-        Response::success( null, 'Logout successful' );
+    public function refresh(
+        array $data,
+        string $jwtSecret
+    ): void {
 
-    } catch (Exception $e) {
-        Response::error($e->getMessage(),  500 );
+        if (
+            empty($data['refresh_token'])
+        ) {
+            Response::error(
+                'Refresh token is required',
+                422
+            );
+        }
+
+        try {
+
+            $tokens =
+                $this->authService->refresh(
+                    $data['refresh_token'],
+                    $jwtSecret
+                );
+
+            Response::success(
+                $tokens,
+                'Tokens refreshed successfully'
+            );
+
+        } catch (Exception $e) {
+
+            Response::error(
+                $e->getMessage(),
+                401
+            );
+        }
     }
-}
-
- //----------------------------------------------         Refresh           ----------------------------------------
-public function refresh(array $data, string $jwtSecret): void
-{
-    if (empty($data['refresh_token'])) {
-        Response::error('Refresh token is required', 422);
-    }
-
-    try {
-        $tokens = $this->authService->refresh(
-            $data['refresh_token'],
-            $jwtSecret
-        );
-
-        Response::success(
-            $tokens,
-            'Tokens refreshed successfully'
-        );
-    } catch (Exception $e) {
-        Response::error($e->getMessage(), 401);
-    }
-}
 }
