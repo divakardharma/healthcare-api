@@ -35,12 +35,22 @@ class PatientController
     }
 
     // GET /patients
-    public function index(int $tenantId): void
-    {
+public function index(int $tenantId): void
+{
+    try {
         $patients = $this->patientService->getAllPatients($tenantId);
-        Response::success($patients, 'Patients fetched successfully');
-    }
 
+        Response::success(
+            $patients,
+            'Patients fetched successfully'
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            422
+        );
+    }
+}
     // PUT /patients/{id}  (Provider, Nurse, Admin)
     public function update(int $id, array $data, int $tenantId): void
     {

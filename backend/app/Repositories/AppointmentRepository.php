@@ -9,17 +9,36 @@ class AppointmentRepository
         $this->db = $db;
     }
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | CREATE APPOINTMENT
+    |--------------------------------------------------------------------------
+    */
     public function create(array $data): int
     {
         $sql = "INSERT INTO appointments
-                (tenant_id, patient_id, provider_id, appointment_date, appointment_time, reason, status)
+                (
+                    patient_id,
+                    provider_id,
+                    appointment_date,
+                    appointment_time,
+                    reason,
+                    status
+                )
                 VALUES
-                (:tenant_id, :patient_id, :provider_id, :appointment_date, :appointment_time, :reason, :status)";
+                (
+                    :patient_id,
+                    :provider_id,
+                    :appointment_date,
+                    :appointment_time,
+                    :reason,
+                    :status
+                )";
 
         $stmt = $this->db->prepare($sql);
 
         $stmt->execute([
-            ':tenant_id'        => $data['tenant_id'],
             ':patient_id'       => $data['patient_id'],
             ':provider_id'      => $data['provider_id'],
             ':appointment_date' => $data['appointment_date'],
@@ -31,81 +50,150 @@ class AppointmentRepository
         return (int) $this->db->lastInsertId();
     }
 
-    public function update(int $id, int $tenantId, array $data): bool
-    {
-        $allowed = ['patient_id', 'provider_id', 'appointment_date', 'appointment_time', 'reason', 'status'];
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE APPOINTMENT
+    |--------------------------------------------------------------------------
+    */
+    public function update(
+        int $id,
+        array $data
+    ): bool {
+
+        $allowed = [
+            'patient_id',
+            'provider_id',
+            'appointment_date',
+            'appointment_time',
+            'reason',
+            'status'
+        ];
+
         $fields = [];
-        $params = [':id' => $id, ':tenant_id' => $tenantId];
+        $params = [
+            ':id' => $id
+        ];
 
         foreach ($allowed as $column) {
+
             if (array_key_exists($column, $data)) {
+
                 $fields[] = "{$column} = :{$column}";
-                $params[":{$column}"] = $data[$column];
+
+                $params[":{$column}"] =
+                    $data[$column];
             }
         }
 
+        // Nothing to update
         if (empty($fields)) {
             return false;
         }
 
-        $sql = "UPDATE appointments SET " . implode(', ', $fields) .
-               " WHERE id = :id AND tenant_id = :tenant_id";
+        $sql = "UPDATE appointments
+                SET " . implode(', ', $fields) . "
+                WHERE id = :id";
 
         $stmt = $this->db->prepare($sql);
 
         return $stmt->execute($params);
     }
 
-    public function updateStatus(int $id, int $tenantId, string $status): bool
-    {
+
+    /*
+    |--------------------------------------------------------------------------
+    | UPDATE STATUS
+    |--------------------------------------------------------------------------
+    */
+    public function updateStatus(
+        int $id,
+        string $status
+    ): bool {
+
         $stmt = $this->db->prepare(
-            "UPDATE appointments SET status = :status WHERE id = :id AND tenant_id = :tenant_id"
+            "UPDATE appointments
+             SET status = :status
+             WHERE id = :id"
         );
 
         return $stmt->execute([
             ':status' => $status,
-            ':id' => $id,
-            ':tenant_id' => $tenantId
+            ':id'     => $id
         ]);
     }
 
-    public function findByIdForTenant(int $id, int $tenantId)
-    {
+
+    /*
+    |--------------------------------------------------------------------------
+    | FIND APPOINTMENT BY ID
+    |--------------------------------------------------------------------------
+    */
+    public function findById(
+        int $id
+    ): array|false {
+
         $stmt = $this->db->prepare(
-            "SELECT a.*, p.patient_name, u.name AS provider_name
+            "SELECT
+                a.*,
+                p.patient_name,
+                u.name AS provider_name
              FROM appointments a
-             LEFT JOIN patients p ON p.id = a.patient_id
-             LEFT JOIN users u ON u.id = a.provider_id
-             WHERE a.id = :id AND a.tenant_id = :tenant_id"
+             LEFT JOIN patients p
+                ON p.id = a.patient_id
+             LEFT JOIN users u
+                ON u.id = a.provider_id
+             WHERE a.id = :id"
         );
 
         $stmt->execute([
-            ':id' => $id,
-            ':tenant_id' => $tenantId
+            ':id' => $id
         ]);
 
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function findAllByTenant(int $tenantId): array
-    {
-        $stmt = $this->db->prepare(
-            "SELECT a.*, p.patient_name, u.name AS provider_name
-             FROM appointments a
-             LEFT JOIN patients p ON p.id = a.patient_id
-             LEFT JOIN users u ON u.id = a.provider_id
-             WHERE a.tenant_id = :tenant_id
-             ORDER BY a.appointment_date DESC, a.appointment_time DESC"
-        );
 
-        $stmt->execute([':tenant_id' => $tenantId]);
+    /*
+    |--------------------------------------------------------------------------
+    | FIND ALL APPOINTMENTS
+    |--------------------------------------------------------------------------
+    */
+    public function findAll(): array
+    {
+        $stmt = $this->db->query(
+            "SELECT
+                a.*,
+                p.patient_name,
+                u.name AS provider_name
+             FROM appointments a
+             LEFT JOIN patients p
+                ON p.id = a.patient_id
+             LEFT JOIN users u
+                ON u.id = a.provider_id
+             ORDER BY
+                a.appointment_date DESC,
+                a.appointment_time DESC"
+        );
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function hasConflict(int $providerId, string $date, string $time, ?int $excludeId = null): bool
-    {
-        $sql = "SELECT COUNT(*) FROM appointments
+
+    /*
+    |--------------------------------------------------------------------------
+    | CHECK APPOINTMENT CONFLICT
+    |--------------------------------------------------------------------------
+    */
+    public function hasConflict(
+        int $providerId,
+        string $date,
+        string $time,
+        ?int $excludeId = null
+    ): bool {
+
+        $sql = "SELECT COUNT(*)
+                FROM appointments
                 WHERE provider_id = :provider_id
                 AND appointment_date = :appointment_date
                 AND appointment_time = :appointment_time
@@ -117,72 +205,112 @@ class AppointmentRepository
             ':appointment_time' => $time
         ];
 
+        // Used while updating an existing appointment
         if ($excludeId !== null) {
+
             $sql .= " AND id != :exclude_id";
+
             $params[':exclude_id'] = $excludeId;
         }
 
         $stmt = $this->db->prepare($sql);
+
         $stmt->execute($params);
 
         return (int) $stmt->fetchColumn() > 0;
     }
 
-    public function getByDate(int $tenantId, string $date): array
-    {
+
+    /*
+    |--------------------------------------------------------------------------
+    | GET APPOINTMENTS BY DATE
+    |--------------------------------------------------------------------------
+    */
+    public function getByDate(
+        string $date
+    ): array {
+
         $stmt = $this->db->prepare(
-            "SELECT a.*, p.patient_name, u.name AS provider_name
+            "SELECT
+                a.*,
+                p.patient_name,
+                u.name AS provider_name
              FROM appointments a
-             LEFT JOIN patients p ON p.id = a.patient_id
-             LEFT JOIN users u ON u.id = a.provider_id
-             WHERE a.tenant_id = :tenant_id
-             AND a.appointment_date = :appointment_date
+             LEFT JOIN patients p
+                ON p.id = a.patient_id
+             LEFT JOIN users u
+                ON u.id = a.provider_id
+             WHERE a.appointment_date = :appointment_date
              ORDER BY a.appointment_time ASC"
         );
 
         $stmt->execute([
-            ':tenant_id' => $tenantId,
             ':appointment_date' => $date
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getByDateRange(int $tenantId, string $startDate, string $endDate): array
-    {
+
+    /*
+    |--------------------------------------------------------------------------
+    | GET APPOINTMENTS BY DATE RANGE
+    |--------------------------------------------------------------------------
+    */
+    public function getByDateRange(
+        string $startDate,
+        string $endDate
+    ): array {
+
         $stmt = $this->db->prepare(
-            "SELECT a.*, p.patient_name, u.name AS provider_name
+            "SELECT
+                a.*,
+                p.patient_name,
+                u.name AS provider_name
              FROM appointments a
-             LEFT JOIN patients p ON p.id = a.patient_id
-             LEFT JOIN users u ON u.id = a.provider_id
-             WHERE a.tenant_id = :tenant_id
-             AND a.appointment_date BETWEEN :start_date AND :end_date
-             ORDER BY a.appointment_date ASC, a.appointment_time ASC"
+             LEFT JOIN patients p
+                ON p.id = a.patient_id
+             LEFT JOIN users u
+                ON u.id = a.provider_id
+             WHERE a.appointment_date
+             BETWEEN :start_date AND :end_date
+             ORDER BY
+                a.appointment_date ASC,
+                a.appointment_time ASC"
         );
 
         $stmt->execute([
-            ':tenant_id' => $tenantId,
             ':start_date' => $startDate,
-            ':end_date' => $endDate
+            ':end_date'   => $endDate
         ]);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getUpcomingAppointments(int $tenantId): array
-    {
-        $stmt = $this->db->prepare(
-            "SELECT a.*, p.patient_name, u.name AS provider_name
-             FROM appointments a
-             LEFT JOIN patients p ON p.id = a.patient_id
-             LEFT JOIN users u ON u.id = a.provider_id
-             WHERE a.tenant_id = :tenant_id
-             AND a.appointment_date >= CURDATE()
-             AND a.status != 'Cancelled'
-             ORDER BY a.appointment_date ASC, a.appointment_time ASC"
-        );
 
-        $stmt->execute([':tenant_id' => $tenantId]);
+    /*
+    |--------------------------------------------------------------------------
+    | GET UPCOMING APPOINTMENTS
+    |--------------------------------------------------------------------------
+    */
+    public function getUpcomingAppointments(): array
+    {
+        $stmt = $this->db->query(
+            "SELECT
+                a.*,
+                p.patient_name,
+                u.name AS provider_name
+             FROM appointments a
+             LEFT JOIN patients p
+                ON p.id = a.patient_id
+             LEFT JOIN users u
+                ON u.id = a.provider_id
+             WHERE a.appointment_date >= CURDATE()
+             AND a.status != 'Cancelled'
+             ORDER BY
+                a.appointment_date ASC,
+                a.appointment_time ASC"
+        );
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }

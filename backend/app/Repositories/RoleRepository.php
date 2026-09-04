@@ -9,7 +9,7 @@ class RoleRepository
         $this->db = $db;
     }
 
-    public function findByName(string $name)
+    public function findByName(string $name): array|false
     {
         $stmt = $this->db->prepare("SELECT * FROM roles WHERE name = :name");
         $stmt->execute([':name' => $name]);
@@ -17,7 +17,7 @@ class RoleRepository
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function findById(int $id)
+    public function findById(int $id): array|false
     {
         $stmt = $this->db->prepare("SELECT * FROM roles WHERE id = :id");
         $stmt->execute([':id' => $id]);
