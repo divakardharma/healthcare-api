@@ -4,6 +4,7 @@ require_once __DIR__ . '/../Security/JWT.php';
 
 class AuthMiddleware
 {
+    // This method checks for the presence of a valid JWT token in the Authorization header of the request.
     public static function handle(string $secret): array
     {
         $headers = getallheaders();
