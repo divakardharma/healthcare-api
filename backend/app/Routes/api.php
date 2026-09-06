@@ -32,11 +32,36 @@ require_once __DIR__ . '/../Helpers/Response.php';
 require_once __DIR__ . '/../Config/database.php';
 require_once __DIR__ . '/../Config/master_database.php';
 
+require_once __DIR__ . '/../Repositories/PrescriptionRepository.php';
+require_once __DIR__ . '/../Services/PrescriptionService.php';
+require_once __DIR__ . '/../Controllers/PrescriptionController.php';
+
+require_once __DIR__ . '/../Controllers/DashboardController.php';
+
+require_once __DIR__ . '/../Controllers/NoteController.php';
+
+require_once __DIR__ . '/../Controllers/BillingController.php';
+
+require_once __DIR__ . '/../Controllers/StaffController.php';
+
 global $pdo, $masterPdo;
 
 $method = $_SERVER['REQUEST_METHOD'];
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$scriptName = dirname($_SERVER['SCRIPT_NAME']);
+if ($scriptName !== '/' && $scriptName !== '\\') {
+    $path = str_replace($scriptName, '', $path);
+}
+$path = '/' . trim($path, '/');
 
+if (isset($_GET['debug'])) {
+    echo json_encode([
+        'request_uri' => $_SERVER['REQUEST_URI'],
+        'script_name' => $_SERVER['SCRIPT_NAME'],
+        'path' => $path
+    ]);
+    exit;
+}
 
 /* Read + decrypt request payload */
 
@@ -76,41 +101,56 @@ function getEncryptedData(): array
 
 /* GET /csrf-token */
 
-if ($method === 'GET' && str_contains($path, '/csrf-token')) {
-    $token = CSRF::generate();
-    $_SESSION['csrf_token'] = $token;
+// if ($method === 'GET' && str_contains($path, '/csrf-token')) {
+//     $token = CSRF::generate();
+//     $_SESSION['csrf_token'] = $token;
 
-    echo json_encode([
-        'status' => true,
-        'message' => 'CSRF token generated',
-        'data' => ['csrf_token' => $token]
-    ]);
+//     echo json_encode([
+//         'status' => true,
+//         'message' => 'CSRF token generated',
+//         'data' => ['csrf_token' => $token]
+//     ]);
 
-    exit;
-}
+//     exit;
+// }
 
 
 /* Public routes */
 
-$isPublicRoute =
-    str_contains($path, '/tenant/register') ||
-    str_contains($path, '/register') ||
-    str_contains($path, '/login') ||
-    str_contains($path, '/refresh');
+// $isPublicRoute =
+//     str_contains($path, '/tenant/register') ||
+//     str_contains($path, '/register') ||
+//     str_contains($path, '/login') ||
+//     str_contains($path, '/refresh') ||
+//     str_contains($path, '/prescriptions');
 
 
 /* CSRF */
 
-if (!$isPublicRoute) {
-    CsrfMiddleware::handle();
-}
+// if (!$isPublicRoute) {
+//     CsrfMiddleware::handle();
+// }
+
+
+$tenantPdo = new PDO(
+    "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=heal_tenant_1;charset=utf8mb4",
+    $_ENV['DB_USER'],
+    $_ENV['DB_PASSWORD']
+);
+$tenantPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$tenantPdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+
 
 
 /* POST /tenant/register */
 
 if ($method === 'POST' && preg_match('#/tenant/register/?$#', $path)) {
-    $data = getEncryptedData();
-
+    // $data = getEncryptedData();
+$data = json_decode(
+    file_get_contents('php://input'),
+    true
+);
     $provisioningService = new TenantProvisioningService($masterPdo);
     $tenantService = new TenantService($masterPdo, $provisioningService);
     $tenantController = new TenantController($tenantService);
@@ -183,21 +223,36 @@ if ($method === 'POST' && str_contains($path, '/refresh')) {
 
 /* Authenticate protected request */
 
-$jwtSecret = $_ENV['JWT_SECRET'];
-$payload = AuthMiddleware::handle($jwtSecret);
+// $jwtSecret = $_ENV['JWT_SECRET'];
+// $payload = AuthMiddleware::handle($jwtSecret);
 
-$userId = (int)$payload['user_id'];
-$tenantId = (int)$payload['tenant_id'];
+// $userId = (int)$payload['user_id'];
+// $tenantId = (int)$payload['tenant_id'];
 
-TenantMiddleware::validate(
-    $tenantId,
-    (int)$payload['tenant_id']
-);
+// TenantMiddleware::validate(
+//     $tenantId,
+//     (int)$payload['tenant_id']
+// );
 
-$tenantResolver = new TenantResolver($masterPdo);
-$tenant = $tenantResolver->resolveById($tenantId);
-$tenantPdo = $tenantResolver->connect($tenant);
+// $tenantResolver = new TenantResolver($masterPdo);
+// $tenant = $tenantResolver->resolveById($tenantId);
+// $tenantPdo = $tenantResolver->connect($tenant);
 
+/* Authenticate protected request */
+
+// if (!$isPublicRoute) {
+//     $jwtSecret = $_ENV['JWT_SECRET'];
+//     $payload = AuthMiddleware::handle($jwtSecret);
+//     $userId = (int)$payload['user_id'];
+//     $tenantId = (int)$payload['tenant_id'];
+//     TenantMiddleware::validate(
+//         $tenantId,
+//         (int)$payload['tenant_id']
+//     );
+//     $tenantResolver = new TenantResolver($masterPdo);
+//     $tenant = $tenantResolver->resolveById($tenantId);
+//     $tenantPdo = $tenantResolver->connect($tenant);
+// }
 
 /* Controllers */
 
@@ -642,6 +697,651 @@ if (
 
     exit;
 }
+
+
+// ========================================
+// PRESCRIPTION ROUTES
+// ========================================
+
+$prescriptionPdo = new PDO(
+    "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=heal_tenant_1;charset=utf8mb4",
+    $_ENV['DB_USER'],
+    $_ENV['DB_PASSWORD']
+);
+$prescriptionPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$prescriptionPdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+if ($method === 'POST' && preg_match('#/prescriptions/?$#', $path)) {
+    try {
+        $controller = new PrescriptionController($prescriptionPdo);
+        $result = $controller->create();
+        Response::success(
+            ['prescription_id' => $result['prescription_id']],
+            $result['message'],
+            201
+        );
+    } catch (Exception $e) {
+        Response::error($e->getMessage(), 400);
+    }
+    exit;
+}
+
+if ($method === 'GET' && preg_match('#/prescriptions/?$#', $path)) {
+    try {
+        $controller = new PrescriptionController($prescriptionPdo);
+        $result = $controller->getAll();
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error($e->getMessage(), 400);
+    }
+    exit;
+}
+
+if ($method === 'GET' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches)) {
+    try {
+        $controller = new PrescriptionController($prescriptionPdo);
+        $result = $controller->getById((int)$matches[1]);
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error($e->getMessage(), 404);
+    }
+    exit;
+}
+
+if ($method === 'PUT' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches)) {
+    try {
+        $controller = new PrescriptionController($prescriptionPdo);
+        $result = $controller->update((int)$matches[1]);
+        Response::success(
+            [],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error($e->getMessage(), 400);
+    }
+    exit;
+}
+
+if ($method === 'DELETE' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches)) {
+    try {
+        $controller = new PrescriptionController($prescriptionPdo);
+        $result = $controller->delete((int)$matches[1]);
+        Response::success(
+            [],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error($e->getMessage(), 404);
+    }
+    exit;
+}
+
+if ($method === 'PATCH' && preg_match('#/prescriptions/(\d+)/status/?$#', $path, $matches)) {
+    try {
+        $controller = new PrescriptionController($prescriptionPdo);
+        $result = $controller->updateStatus((int)$matches[1]);
+        Response::success(
+            [],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error($e->getMessage(), 400);
+    }
+    exit;
+}
+
+
+// ========================================
+// NOTE ROUTES
+// ========================================
+
+$notePdo = new PDO(
+    "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=heal_tenant_1;charset=utf8mb4",
+    $_ENV['DB_USER'],
+    $_ENV['DB_PASSWORD']
+);
+$notePdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$notePdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+// ========================================
+// Create Note
+// ========================================
+
+if ($method === 'POST' && preg_match('#^/notes/?$#', $path)) {
+    try {
+        $controller = new NoteController($notePdo);
+        $result = $controller->create();
+        Response::success(
+            $result,
+            $result['message'],
+            201
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+    exit;
+}
+
+// ========================================
+// Get All Notes
+// ========================================
+
+if ($method === 'GET' && preg_match('#^/notes/?$#', $path)) {
+    try {
+        $controller = new NoteController($notePdo);
+        $result = $controller->getAll();
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+    exit;
+}
+
+// ========================================
+// Get Note By ID
+// ========================================
+
+if ($method === 'GET' && preg_match('#^/notes/(\d+)/?$#', $path, $matches)) {
+    try {
+        $controller = new NoteController($notePdo);
+        $result = $controller->getById(
+            (int)$matches[1]
+        );
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            404
+        );
+    }
+    exit;
+}
+
+// ========================================
+// Get Notes By Appointment ID
+// ========================================
+
+if ($method === 'GET' && preg_match('#^/appointments/(\d+)/notes/?$#', $path, $matches)) {
+    try {
+        $controller = new NoteController($notePdo);
+        $result = $controller->getByAppointmentId(
+            (int)$matches[1]
+        );
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+    exit;
+}
+
+// ========================================
+// Update Note
+// ========================================
+
+if ($method === 'PUT' && preg_match('#^/notes/(\d+)/?$#', $path, $matches)) {
+    try {
+        $controller = new NoteController($notePdo);
+        $result = $controller->update(
+            (int)$matches[1]
+        );
+        Response::success(
+            [],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+    exit;
+}
+
+// ========================================
+// Delete Note
+// ========================================
+
+if ($method === 'DELETE' && preg_match('#^/notes/(\d+)/?$#', $path, $matches)) {
+    try {
+        $controller = new NoteController($notePdo);
+        $result = $controller->delete(
+            (int)$matches[1]
+        );
+        Response::success(
+            [],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            404
+        );
+    }
+    exit;
+}
+
+
+// ========================================
+// DASHBOARD ROUTES
+// ========================================
+
+$dashboardPdo = new PDO(
+    "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=heal_tenant_1;charset=utf8mb4",
+    $_ENV['DB_USER'],
+    $_ENV['DB_PASSWORD']
+);
+$dashboardPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$dashboardPdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+
+// Get Dashboard Data
+if ($method === 'GET' && preg_match('#^/dashboard/?$#', $path)) {
+    try {
+        $controller = new DashboardController($dashboardPdo);
+        $result = $controller->getDashboard();
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+    exit;
+}
+
+
+// ========================================
+// BILLING ROUTES
+// ========================================
+$billingPdo = new PDO(
+    "mysql:host=" . $_ENV['DB_HOST'] . ";dbname=heal_tenant_1;charset=utf8mb4",
+    $_ENV['DB_USER'],
+    $_ENV['DB_PASSWORD']
+);
+$billingPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$billingPdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+// Create Invoice
+if ($method === 'POST' && preg_match('#^/billing/?$#', $path)) {
+    try {
+        $controller = new BillingController($billingPdo);
+        $result = $controller->create();
+        Response::success(
+            $result,
+            $result['message'],
+            201
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+    exit;
+}
+// Get All Invoices
+if ($method === 'GET' && preg_match('#^/billing/?$#', $path)) {
+    try {
+        $controller = new BillingController($billingPdo);
+        $result = $controller->getAll();
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+    exit;
+}
+// Get Invoice By ID
+if ($method === 'GET' && preg_match('#^/billing/(\d+)/?$#', $path, $matches)) {
+    try {
+        $controller = new BillingController($billingPdo);
+        $result = $controller->getById(
+            (int)$matches[1]
+        );
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            404
+        );
+    }
+    exit;
+}
+
+// Get Payment Summary
+if ($method === 'GET' && preg_match('#^/billing/summary/?$#', $path)) {
+    try {
+        $controller = new BillingController($billingPdo);
+        $result = $controller->getPaymentSummary();
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+    exit;
+}
+
+
+// Update Invoice
+if ($method === 'PUT' && preg_match('#^/billing/(\d+)/?$#', $path, $matches)) {
+    try {
+        $controller = new BillingController($billingPdo);
+        $result = $controller->update(
+            (int)$matches[1]
+        );
+        Response::success(
+            [],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+    exit;
+}
+// Delete Invoice
+if ($method === 'DELETE' && preg_match('#^/billing/(\d+)/?$#', $path, $matches)) {
+    try {
+        $controller = new BillingController($billingPdo);
+        $result = $controller->delete(
+            (int)$matches[1]
+        );
+        Response::success(
+            [],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            404
+        );
+    }
+    exit;
+}
+// Update Payment Status
+if ($method === 'PATCH' && preg_match('#^/billing/(\d+)/status/?$#', $path, $matches)) {
+    try {
+        $controller = new BillingController($billingPdo);
+        $result = $controller->updatePaymentStatus(
+            (int)$matches[1]
+        );
+        Response::success(
+            [],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+    exit;
+}
+
+
+
+// ========================================
+// STAFF ROUTES
+// ========================================
+
+
+// Create Staff
+if ($method === 'POST' && preg_match('#^/staff/?$#', $path)) {
+
+    try {
+
+        $controller = new StaffController($prescriptionPdo);
+
+        $result = $controller->create();
+
+        Response::success(
+            $result,
+            $result['message'],
+            201
+        );
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+
+    exit;
+}
+
+
+// ========================================
+// Get All Staff
+// ========================================
+
+if ($method === 'GET' && preg_match('#^/staff/?$#', $path)) {
+
+    try {
+
+        $controller = new StaffController($prescriptionPdo);
+
+        $result = $controller->getAll();
+
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+
+    exit;
+}
+
+
+// ========================================
+// Get Staff By ID
+// ========================================
+
+if (
+    $method === 'GET' &&
+    preg_match('#^/staff/(\d+)/?$#', $path, $matches)
+) {
+
+    try {
+
+        $controller = new StaffController($prescriptionPdo);
+
+        $result = $controller->getById(
+            (int)$matches[1]
+        );
+
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            404
+        );
+    }
+
+    exit;
+}
+
+
+// ========================================
+// Update Staff
+// ========================================
+
+if (
+    $method === 'PUT' &&
+    preg_match('#^/staff/(\d+)/?$#', $path, $matches)
+) {
+
+    try {
+
+        $controller = new StaffController($prescriptionPdo);
+
+        $result = $controller->update(
+            (int)$matches[1]
+        );
+
+        Response::success(
+            [],
+            $result['message'],
+            200
+        );
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+
+    exit;
+}
+
+
+// ========================================
+// Delete Staff
+// ========================================
+
+if (
+    $method === 'DELETE' &&
+    preg_match('#^/staff/(\d+)/?$#', $path, $matches)
+) {
+
+    try {
+
+        $controller = new StaffController($prescriptionPdo);
+
+        $result = $controller->delete(
+            (int)$matches[1]
+        );
+
+        Response::success(
+            [],
+            $result['message'],
+            200
+        );
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            404
+        );
+    }
+
+    exit;
+}
+
+
+// ========================================
+// Update Staff Status
+// ========================================
+
+if (
+    $method === 'PATCH' &&
+    preg_match(
+        '#^/staff/(\d+)/status/?$#',
+        $path,
+        $matches
+    )
+) {
+
+    try {
+
+        $controller = new StaffController($prescriptionPdo);
+
+        $result = $controller->updateStatus(
+            (int)$matches[1]
+        );
+
+        Response::success(
+            [],
+            $result['message'],
+            200
+        );
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+
+    exit;
+}
+
 
 
 /* Route not found */
