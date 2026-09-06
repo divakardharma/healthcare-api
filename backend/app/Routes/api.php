@@ -101,35 +101,34 @@ function getEncryptedData(): array
 
 /* GET /csrf-token */
 
-// if ($method === 'GET' && str_contains($path, '/csrf-token')) {
-//     $token = CSRF::generate();
-//     $_SESSION['csrf_token'] = $token;
+if ($method === 'GET' && str_contains($path, '/csrf-token')) {
+    $token = CSRF::generate();
+    $_SESSION['csrf_token'] = $token;
 
-//     echo json_encode([
-//         'status' => true,
-//         'message' => 'CSRF token generated',
-//         'data' => ['csrf_token' => $token]
-//     ]);
+    echo json_encode([
+        'status' => true,
+        'message' => 'CSRF token generated',
+        'data' => ['csrf_token' => $token]
+    ]);
 
-//     exit;
-// }
+    exit;
+}
 
 
 /* Public routes */
 
-// $isPublicRoute =
-//     str_contains($path, '/tenant/register') ||
-//     str_contains($path, '/register') ||
-//     str_contains($path, '/login') ||
-//     str_contains($path, '/refresh') ||
-//     str_contains($path, '/prescriptions');
+$isPublicRoute =
+    str_contains($path, '/tenant/register') ||
+    str_contains($path, '/register') ||
+    str_contains($path, '/login') ||
+    str_contains($path, '/refresh');
 
 
 /* CSRF */
 
-// if (!$isPublicRoute) {
-//     CsrfMiddleware::handle();
-// }
+if (!$isPublicRoute) {
+    CsrfMiddleware::handle();
+}
 
 
 $tenantPdo = new PDO(
@@ -223,36 +222,19 @@ if ($method === 'POST' && str_contains($path, '/refresh')) {
 
 /* Authenticate protected request */
 
-// $jwtSecret = $_ENV['JWT_SECRET'];
-// $payload = AuthMiddleware::handle($jwtSecret);
-
-// $userId = (int)$payload['user_id'];
-// $tenantId = (int)$payload['tenant_id'];
-
-// TenantMiddleware::validate(
-//     $tenantId,
-//     (int)$payload['tenant_id']
-// );
-
-// $tenantResolver = new TenantResolver($masterPdo);
-// $tenant = $tenantResolver->resolveById($tenantId);
-// $tenantPdo = $tenantResolver->connect($tenant);
-
-/* Authenticate protected request */
-
-// if (!$isPublicRoute) {
-//     $jwtSecret = $_ENV['JWT_SECRET'];
-//     $payload = AuthMiddleware::handle($jwtSecret);
-//     $userId = (int)$payload['user_id'];
-//     $tenantId = (int)$payload['tenant_id'];
-//     TenantMiddleware::validate(
-//         $tenantId,
-//         (int)$payload['tenant_id']
-//     );
-//     $tenantResolver = new TenantResolver($masterPdo);
-//     $tenant = $tenantResolver->resolveById($tenantId);
-//     $tenantPdo = $tenantResolver->connect($tenant);
-// }
+if (!$isPublicRoute) {
+    $jwtSecret = $_ENV['JWT_SECRET'];
+    $payload = AuthMiddleware::handle($jwtSecret);
+    $userId = (int)$payload['user_id'];
+    $tenantId = (int)$payload['tenant_id'];
+    TenantMiddleware::validate(
+        $tenantId,
+        (int)$payload['tenant_id']
+    );
+    $tenantResolver = new TenantResolver($masterPdo);
+    $tenant = $tenantResolver->resolveById($tenantId);
+    $tenantPdo = $tenantResolver->connect($tenant);
+}
 
 /* Controllers */
 
