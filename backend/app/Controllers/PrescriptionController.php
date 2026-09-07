@@ -13,32 +13,27 @@ public function __construct(PDO $pdo)
     // ========================================
     // Create Prescription
     // ========================================
-    public function create(): array
-    {
-        $input = json_decode(
-            file_get_contents('php://input'),
-            true
-        );
-        if (!is_array($input)) {
-            throw new Exception('Invalid JSON request');
-        }
-        $patientId = $input['patient_id'] ?? 0;
-        $providerId = $input['provider_id'] ?? 0;
-        $appointmentId = $input['appointment_id'] ?? null;
-        $notes = $input['notes'] ?? '';
-        $items = $input['items'] ?? [];
-        $prescriptionId = $this->prescriptionService->createPrescription(
-            (int)$patientId,
-            (int)$providerId,
-            $appointmentId ? (int)$appointmentId : null,
-            $notes,
-            $items
-        );
-        return [
-            'message' => 'Prescription created successfully',
-            'prescription_id' => $prescriptionId
-        ];
-    }
+ public function create(array $input): array
+{
+    $patientId = $input['patient_id'] ?? 0;
+    $providerId = $input['provider_id'] ?? 0;
+    $appointmentId = $input['appointment_id'] ?? null;
+    $notes = $input['notes'] ?? '';
+    $items = $input['items'] ?? [];
+
+    $prescriptionId = $this->prescriptionService->createPrescription(
+        (int)$patientId,
+        (int)$providerId,
+        $appointmentId ? (int)$appointmentId : null,
+        $notes,
+        $items
+    );
+
+    return [
+        'message' => 'Prescription created successfully',
+        'prescription_id' => $prescriptionId
+    ];
+}
 
     // ========================================
     // Get All Prescriptions
