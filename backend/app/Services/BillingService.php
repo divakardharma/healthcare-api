@@ -7,9 +7,8 @@ class BillingService
     {
         $this->billingRepository = new BillingRepository($pdo);
     }
-    // ========================================
+    
     // Create Invoice
-    // ========================================
     public function createInvoice(
         int $patientId,
         ?int $appointmentId,

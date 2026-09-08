@@ -2,11 +2,9 @@
 
 require_once __DIR__ . '/../Services/StaffService.php';
 
-
 class StaffController
 {
     private StaffService $staffService;
-
 
     public function __construct(PDO $pdo)
     {
@@ -18,28 +16,17 @@ class StaffController
     // Create Staff
     // ========================================
 
-    public function create(): array
+    public function create(array $input): array
     {
-        $input = json_decode(
-            file_get_contents('php://input'),
-            true
-        );
-
-        if (!is_array($input)) {
-            throw new Exception('Invalid JSON request');
-        }
-
         $userId = $input['user_id'] ?? 0;
         $roleId = $input['role_id'] ?? 0;
         $status = $input['status'] ?? 'Active';
-
 
         $staffId = $this->staffService->createStaff(
             (int)$userId,
             (int)$roleId,
             $status
         );
-
 
         return [
             'message' => 'Staff created successfully',
@@ -67,10 +54,8 @@ class StaffController
     // Get Staff By ID
     // ========================================
 
-    public function getById(
-        int $staffId
-    ): array {
-
+    public function getById(int $staffId): array
+    {
         $staff = $this->staffService->getStaffById(
             $staffId
         );
@@ -87,22 +72,13 @@ class StaffController
     // ========================================
 
     public function update(
-        int $staffId
+        int $staffId,
+        array $input
     ): array {
-
-        $input = json_decode(
-            file_get_contents('php://input'),
-            true
-        );
-
-        if (!is_array($input)) {
-            throw new Exception('Invalid JSON request');
-        }
 
         $userId = $input['user_id'] ?? 0;
         $roleId = $input['role_id'] ?? 0;
         $status = $input['status'] ?? 'Active';
-
 
         $this->staffService->updateStaff(
             $staffId,
@@ -110,7 +86,6 @@ class StaffController
             (int)$roleId,
             $status
         );
-
 
         return [
             'message' => 'Staff updated successfully'
@@ -122,10 +97,8 @@ class StaffController
     // Delete Staff
     // ========================================
 
-    public function delete(
-        int $staffId
-    ): array {
-
+    public function delete(int $staffId): array
+    {
         $this->staffService->deleteStaff(
             $staffId
         );
@@ -141,26 +114,16 @@ class StaffController
     // ========================================
 
     public function updateStatus(
-        int $staffId
+        int $staffId,
+        array $input
     ): array {
 
-        $input = json_decode(
-            file_get_contents('php://input'),
-            true
-        );
-
-        if (!is_array($input)) {
-            throw new Exception('Invalid JSON request');
-        }
-
         $status = $input['status'] ?? '';
-
 
         $this->staffService->updateStatus(
             $staffId,
             $status
         );
-
 
         return [
             'message' => 'Staff status updated successfully'

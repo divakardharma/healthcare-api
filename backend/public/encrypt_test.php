@@ -3,9 +3,16 @@
 require_once __DIR__ . '/../app/Security/AES.php';
 require_once __DIR__ . '/../app/Config/config.php';
 
-$data = [
+// $data = [
   
-    //  "subdomain" => "abc",
+//     //  "subdomain" => "abc",
+
+//     // "refresh_token"=> "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ0ZW5hbnRfaWQiOjEsImlhdCI6MTc4ODY3NzI0MiwiZXhwIjoxNzg5MjgyMDQyfQ.ifYlfNnQIq9-AfNn-QK83wSjZhkVDRP55SDVrSpkHnQ"
+
+//     // "name" => "ABC Hospital",
+//     // "email" => "admin@abc.com",
+//     "subdomain"=>"abc",
+//     // "password" => "abc@12345"
 
     // "refresh_token"=> "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ0ZW5hbnRfaWQiOjIsImlhdCI6MTc4ODcwMjczOCwiZXhwIjoxNzg5MzA3NTM4fQ.SvYRy6DXKQ62Dh7l3sXE6tYnYEKKyFTGYk0yJbbYwbI",
 
@@ -32,24 +39,34 @@ $data = [
 
 ];
 
-$json = json_encode($data);
+try {
 
-$encryptionKey = $_ENV['AES_KEY'];
+    $encrypted = AES::encrypt($json, $key);
 
-$encrypted = AES::encrypt($json, $encryptionKey);
-$decrypted = AES::decrypt($encrypted, $encryptionKey);
+    echo "<h3>Encrypted Data:</h3>";
 
-echo "<h3>Original JSON</h3>";
-echo "<pre>";
-echo $json;
-echo "</pre>";
+    echo "<div style='
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 15px;
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        font-family: monospace;
+        line-height: 1.5;
+        white-space: pre-wrap;
+        word-break: break-all;
+        overflow-wrap: anywhere;
+    '>";
 
-echo "<h3>Encrypted Payload</h3>";
-echo "<pre>";
-echo $encrypted;
-echo "</pre>";
+    echo htmlspecialchars($encrypted);
 
-echo "<h3>Decrypted JSON</h3>";
-echo "<pre>";
-echo $decrypted;
-echo "</pre>";
+    echo "</div>";
+
+} catch (Exception $e) {
+
+    echo "Encryption failed: " . htmlspecialchars($e->getMessage());
+
+}
+
+?>

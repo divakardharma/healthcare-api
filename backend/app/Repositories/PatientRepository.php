@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../Security/AES.php';
+
 class PatientRepository
 {
     private PDO $db;
@@ -20,12 +22,12 @@ class PatientRepository
 
         $stmt->execute([
             ':user_id'       => $data['user_id'] ?? null,
-            ':patient_name'  => $data['patient_name'],
-            ':email'         => $data['email'] ?? null,
-            ':mobile'        => $data['mobile'],
-            ':date_of_birth' => $data['date_of_birth'] ?? null,
-            ':gender'        => $data['gender'] ?? null,
-            ':address'       => $data['address'] ?? null,
+            ':patient_name'  => AES::encryptField($data['patient_name']),
+            ':email'         => AES::encryptField($data['email'] ?? null),
+            ':mobile'        => AES::encryptField($data['mobile'] ?? null),
+            ':date_of_birth' => AES::encryptField($data['date_of_birth'] ?? null),
+            ':gender'        => AES::encryptField($data['gender'] ?? null),
+            ':address'       => AES::encryptField($data['address'] ?? null),
             ':medical_data'  => $data['medical_data'] ?? null
         ]);
 
@@ -50,7 +52,11 @@ class PatientRepository
         foreach ($allowed as $column) {
             if (array_key_exists($column, $data)) {
                 $fields[] = "{$column} = :{$column}";
-                $params[":{$column}"] = $data[$column];
+
+                $params[":{$column}"] =
+                    in_array($column, ['patient_name', 'email', 'mobile', 'date_of_birth', 'gender', 'address'], true)
+                        ? AES::encryptField($data[$column])
+                        : $data[$column];
             }
         }
 
@@ -93,7 +99,9 @@ class PatientRepository
             ':id' => $id
         ]);
 
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $patient = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $patient === false ? false : $this->decryptRow($patient);
     }
 
     public function findAll(): array
@@ -104,7 +112,10 @@ class PatientRepository
              ORDER BY id DESC"
         );
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return array_map(
+            [$this, 'decryptRow'],
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        );
     }
 
     public function findByUserId(int $userId)
@@ -120,22 +131,87 @@ class PatientRepository
             ':user_id' => $userId
         ]);
 
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $patient = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $patient === false ? false : $this->decryptRow($patient);
     }
 
-    public function findAppointmentsForPatient(int $patientId): array
+public function findAppointmentsForPatient(int $patientId): array
+{
+    $stmt = $this->db->prepare(
+        "SELECT * FROM appointments
+         WHERE patient_id = :patient_id
+         ORDER BY appointment_date DESC,
+                  appointment_time DESC"
+    );
+
+    $stmt->execute([
+        ':patient_id' => $patientId
+    ]);
+
+    return array_map(
+        [$this, 'decryptAppointmentRow'],
+        $stmt->fetchAll(PDO::FETCH_ASSOC)
+    );
+}
+
+private function decryptAppointmentRow(array $appointment): array
+{
+    if (isset($appointment['reason'])) {
+        $appointment['reason'] = AES::decryptField($appointment['reason']);
+    }
+
+    return $appointment;
+}
+
+    /*
+    |--------------------------------------------------------------------------
+    | DECRYPT ROW
+    |--------------------------------------------------------------------------
+    | patient_name, email, mobile, date_of_birth, gender, address are stored 
+    | AES encrypted (see create()/update()). Checks if data is encrypted before 
+    | decrypting to support old plaintext records (backward compatible).
+    |--------------------------------------------------------------------------
+    */
+    private function decryptRow(array $patient): array
     {
-        $stmt = $this->db->prepare(
-            "SELECT * FROM appointments
-             WHERE patient_id = :patient_id
-             ORDER BY appointment_date DESC,
-                      appointment_time DESC"
-        );
+        if (isset($patient['patient_name']) && $this->isEncrypted($patient['patient_name'])) {
+            $patient['patient_name'] = AES::decryptField($patient['patient_name']);
+        }
 
-        $stmt->execute([
-            ':patient_id' => $patientId
-        ]);
+        if (isset($patient['email']) && $this->isEncrypted($patient['email'])) {
+            $patient['email'] = AES::decryptField($patient['email']);
+        }
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (isset($patient['mobile']) && $this->isEncrypted($patient['mobile'])) {
+            $patient['mobile'] = AES::decryptField($patient['mobile']);
+        }
+
+        if (isset($patient['date_of_birth']) && $this->isEncrypted($patient['date_of_birth'])) {
+            $patient['date_of_birth'] = AES::decryptField($patient['date_of_birth']);
+        }
+
+        if (isset($patient['gender']) && $this->isEncrypted($patient['gender'])) {
+            $patient['gender'] = AES::decryptField($patient['gender']);
+        }
+
+        if (isset($patient['address']) && $this->isEncrypted($patient['address'])) {
+            $patient['address'] = AES::decryptField($patient['address']);
+        }
+
+        return $patient;
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | CHECK IF ENCRYPTED
+    |--------------------------------------------------------------------------
+    | Encrypted data is base64 with '=' padding. Plaintext is not.
+    | Returns true if value looks encrypted, false if plaintext.
+    |--------------------------------------------------------------------------
+    */
+    private function isEncrypted(string $value): bool
+{
+    return !empty($value) && (strpos($value, '=') !== false || strpos($value, '/') !== false || strpos($value, '+') !== false);
+}
 }
