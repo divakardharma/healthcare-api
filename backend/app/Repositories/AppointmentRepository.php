@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../Security/AES.php';
+
 class AppointmentRepository
 {
     private PDO $db;
@@ -43,7 +45,7 @@ class AppointmentRepository
             ':provider_id'      => $data['provider_id'],
             ':appointment_date' => $data['appointment_date'],
             ':appointment_time' => $data['appointment_time'],
-            ':reason'           => $data['reason'] ?? null,
+            ':reason'           => isset($data['reason']) ? AES::encryptField($data['reason']) : null,
             ':status'           => 'Scheduled'
         ]);
 
@@ -82,7 +84,9 @@ class AppointmentRepository
                 $fields[] = "{$column} = :{$column}";
 
                 $params[":{$column}"] =
-                    $data[$column];
+                    $column === 'reason'
+                        ? AES::encryptField($data[$column])
+                        : $data[$column];
             }
         }
 
@@ -150,7 +154,11 @@ class AppointmentRepository
             ':id' => $id
         ]);
 
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $appointment = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $appointment === false
+            ? false
+            : $this->decryptRow($appointment);
     }
 
 
@@ -176,7 +184,10 @@ class AppointmentRepository
                 a.appointment_time DESC"
         );
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return array_map(
+            [$this, 'decryptRow'],
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        );
     }
 
 
@@ -248,7 +259,10 @@ class AppointmentRepository
             ':appointment_date' => $date
         ]);
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return array_map(
+            [$this, 'decryptRow'],
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        );
     }
 
 
@@ -284,7 +298,10 @@ class AppointmentRepository
             ':end_date'   => $endDate
         ]);
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return array_map(
+            [$this, 'decryptRow'],
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        );
     }
 
 
@@ -306,12 +323,47 @@ class AppointmentRepository
              LEFT JOIN users u
                 ON u.id = a.provider_id
              WHERE a.appointment_date >= CURDATE()
-             AND a.status != 'Cancelled'
+              AND a.status IN ('Scheduled', 'Confirmed')
              ORDER BY
                 a.appointment_date ASC,
                 a.appointment_time ASC"
         );
 
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        return array_map(
+            [$this, 'decryptRow'],
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DECRYPT ROW
+    |--------------------------------------------------------------------------
+    | patient_name and provider_name are pulled in via JOINs from the
+    | patients / users tables, where they are stored AES encrypted
+    | (see PatientRepository / UserRepository). Decrypt them here so
+    | Appointment & Calendar API responses stay in plaintext, unchanged
+    | from before this migration.
+    |--------------------------------------------------------------------------
+    */
+    private function decryptRow(array $appointment): array
+    {
+        if (isset($appointment['patient_name'])) {
+            $appointment['patient_name'] =
+                AES::decryptField($appointment['patient_name']);
+        }
+
+        if (isset($appointment['provider_name'])) {
+            $appointment['provider_name'] =
+                AES::decryptField($appointment['provider_name']);
+        }
+
+        if (isset($appointment['reason'])) {
+            $appointment['reason'] =
+                AES::decryptField($appointment['reason']);
+        }
+
+        return $appointment;
     }
 }
