@@ -146,12 +146,12 @@ class AppointmentController
 
         try {
 
-            $appointment =
-                $this->appointmentService->updateStatus(
-                    $id,
-                    $tenantId,
-                    $data['status']
-                );
+           $appointment =
+    $this->appointmentService->updateAppointmentStatus(
+        $id,
+        $tenantId,
+        $data['status']
+    );
 
             Response::success(
                 $appointment,
