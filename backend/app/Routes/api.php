@@ -117,7 +117,7 @@ if (!$isPublicRoute) {
 
 /* POST /tenant/register */
 
-if ($method === 'POST' && preg_match('#/tenant/register/?$#', $path)) {
+if ($method === 'POST' && preg_match('#^/tenant/register/?$#', $path)) {
     $data = getEncryptedData();
 
     $provisioningService = new TenantProvisioningService($masterPdo);
@@ -846,6 +846,7 @@ if ($method === 'GET' && preg_match('#^/appointments/(\d+)/notes/?$#', $path, $m
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
         Response::error($e->getMessage(), 400);
     }

@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../Security/AES.php';
+
 class TenantProvisioningService
 {
     private PDO $pdo;
@@ -84,20 +86,22 @@ class TenantProvisioningService
 
         $hashedPassword = password_hash( $adminPassword, PASSWORD_DEFAULT );
 
-        $stmt = $tenantPdo->prepare("
+               $stmt = $tenantPdo->prepare("
             INSERT INTO users
             (
                 name,
                 email,
+                email_hash,
                 password
             )
             VALUES
-            (?, ?, ?)
+            (?, ?, ?, ?)
         ");
 
         $stmt->execute([
-            $adminName,
-            $adminEmail,
+            AES::encryptField($adminName),
+            AES::encryptField($adminEmail),
+            AES::searchHash($adminEmail),
             $hashedPassword
         ]);
 

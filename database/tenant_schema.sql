@@ -9,9 +9,10 @@
 
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(150) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL,
+    name VARCHAR(500) NOT NULL,          -- AES encrypted at rest
+    email VARCHAR(500) NOT NULL,         -- AES encrypted at rest
+    email_hash CHAR(64) NOT NULL UNIQUE, -- HMAC-SHA256(email), used for lookups
+    password VARCHAR(255) NOT NULL,      -- bcrypt hash
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -104,13 +105,12 @@ CREATE TABLE patients (
 
     user_id INT NULL,
 
-    patient_name VARCHAR(100) NOT NULL,
-    email VARCHAR(150),
-    mobile VARCHAR(20) NOT NULL,
-
-    date_of_birth DATE,
-    gender VARCHAR(20),
-    address TEXT,
+    patient_name VARCHAR(500) NOT NULL, -- AES encrypted at rest
+    email VARCHAR(500),                 -- AES encrypted at rest
+    mobile VARCHAR(255) NOT NULL,       -- AES encrypted at rest
+    date_of_birth VARCHAR(255),         -- AES encrypted at rest
+    gender VARCHAR(255),                -- AES encrypted at rest
+    address VARCHAR(255),               -- AES encrypted at rest
     medical_data TEXT,
 
     deleted_at TIMESTAMP NULL DEFAULT NULL,

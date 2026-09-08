@@ -480,7 +480,8 @@ class AuthService
 
         return [
             'access_token'  => $accessToken,
-            'refresh_token' => $newRefreshToken
+            'refresh_token' => $newRefreshToken,
+             'csrf_token'    => $csrfToken
         ];
     }
 }

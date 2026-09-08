@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../Security/AES.php';
+
 class UserRepository
 {
     private PDO $db;
@@ -19,16 +21,18 @@ class UserRepository
     public function create(array $data): int
     {
         $sql = "INSERT INTO users
-                (name, email, password)
+                (name, email, email_hash, password)
                 VALUES
-                (:name, :email, :password)";
+                (:name, :email, :email_hash, :password)";
 
         $stmt = $this->db->prepare($sql);
 
         $stmt->execute([
-            ':name'     => $data['name'],
-            ':email'    => $data['email'],
-            ':password' => $data['password']
+            ':name'       => AES::encryptField($data['name']),
+            ':email'      => AES::encryptField($data['email']),
+            ':email_hash' => AES::searchHash($data['email']),
+            // password arrives already bcrypt-hashed via Hash::make()
+            ':password'   => $data['password']
         ]);
 
         return (int) $this->db->lastInsertId();
@@ -67,7 +71,16 @@ class UserRepository
                     "{$column} = :{$column}";
 
                 $params[":{$column}"] =
-                    $data[$column];
+                    AES::encryptField($data[$column]);
+
+                // Keep the lookup hash in sync whenever email changes
+                if ($column === 'email') {
+
+                    $fields[] = "email_hash = :email_hash";
+
+                    $params[':email_hash'] =
+                        AES::searchHash($data['email']);
+                }
             }
         }
 
@@ -150,16 +163,20 @@ class UserRepository
             $this->db->prepare(
                 "SELECT *
                  FROM users
-                 WHERE email = :email"
+                 WHERE email_hash = :email_hash"
             );
 
         $stmt->execute([
-            ':email' => $email
+            ':email_hash' => AES::searchHash($email)
         ]);
 
-        return $stmt->fetch(
+        $user = $stmt->fetch(
             PDO::FETCH_ASSOC
         );
+
+        return $user === false
+            ? false
+            : $this->decryptRow($user);
     }
 
 
@@ -184,9 +201,13 @@ class UserRepository
             ':id' => $id
         ]);
 
-        return $stmt->fetch(
+        $user = $stmt->fetch(
             PDO::FETCH_ASSOC
         );
+
+        return $user === false
+            ? false
+            : $this->decryptRow($user);
     }
 
 
@@ -205,8 +226,9 @@ class UserRepository
                  ORDER BY id DESC"
             );
 
-        return $stmt->fetchAll(
-            PDO::FETCH_ASSOC
+        return array_map(
+            [$this, 'decryptRow'],
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
         );
     }
 
@@ -237,8 +259,9 @@ class UserRepository
             ':role_name' => $roleName
         ]);
 
-        return $stmt->fetchAll(
-            PDO::FETCH_ASSOC
+        return array_map(
+            [$this, 'decryptRow'],
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
         );
     }
 
@@ -259,5 +282,31 @@ class UserRepository
 
         return (int)
             $stmt->fetchColumn();
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | DECRYPT ROW
+    |--------------------------------------------------------------------------
+    | name/email are stored AES encrypted (see create()/update() above).
+    | Every read path routes through here so callers keep receiving
+    | plaintext, unchanged from before this migration.
+    |--------------------------------------------------------------------------
+    */
+    private function decryptRow(array $user): array
+    {
+        if (isset($user['name'])) {
+            $user['name'] = AES::decryptField($user['name']);
+        }
+
+        if (isset($user['email'])) {
+            $user['email'] = AES::decryptField($user['email']);
+        }
+
+        // Internal lookup value, never expose it in API responses
+        unset($user['email_hash']);
+
+        return $user;
     }
 }
