@@ -48,6 +48,17 @@ public function __construct(PDO $pdo)
         $stmt = $this->pdo->prepare(  "UPDATE refresh_tokens  SET revoked = TRUE  WHERE user_id = ?  AND revoked = FALSE" );
 
         return $stmt->execute([$userId]);
+    }
+
+     // ---------------------------------------     DELETE      -------------------------------------------
+
+       public function delete(int $id): bool
+    {
+    $stmt = $this->pdo->prepare(
+        "DELETE FROM refresh_tokens WHERE id = ?"
+    );
+
+    return $stmt->execute([$id]);
 
     }
 }

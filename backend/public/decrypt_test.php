@@ -5,7 +5,7 @@ require_once __DIR__ . '/../app/Config/config.php';
 
 $encryptionKey = $_ENV['AES_KEY'];
 
-$encryptedPayload = 'P70Nkzn9lzgcjnyQsABg3RGFnYvxcv4qBTVmSZY9AsBUnqDuZpqPdg2C71FXv895Kt1CMFMgaTmnsc7fOSa6Rgv1OuMdLu+Z/kx2NkKOJoiBGSznqAbWNa6ShNOzy37DoOQp6gJ5EUy/AbH5OlkDDg==';
+$encryptedPayload = 'BtAELwJy5xact5ZMIPCyVBXD08dbdyyanpm0tmq8scB87LNXjydiLc3F1ps2Rlkd7kMJJ4Z2o2vsClkhAP1GNlfS4mshLWOk87LNS+nk3mPBRSKJBLDZiWsxNcS2uKQOgA/V0JdhYpRlnew/oFrXBcaYB28h9xLgVbv2zJlKZIhflTfe2I1ggf2/GTTnG1xkzeocHSrxWZi4lwq03DbZaw==';
 
 $key = $_ENV['AES_KEY'] ?? '';
 

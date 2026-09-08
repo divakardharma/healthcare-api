@@ -375,17 +375,10 @@ class AuthService
         | Revoke Old Refresh Token
         |--------------------------------------------------------------------------
         */
-
-        if (
-            !$this->refreshTokenRepository->revoke(
-                (int) $token['id']
-            )
-        ) {
-            throw new Exception(
-                'Failed to rotate refresh token'
-            );
-        }
-
+         if (!$this->refreshTokenRepository->delete( (int) $token['id']))
+           {
+           throw new Exception('Failed to rotate refresh token' );
+           }
 
         /*
         |--------------------------------------------------------------------------

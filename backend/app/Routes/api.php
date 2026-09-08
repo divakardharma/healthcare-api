@@ -51,8 +51,8 @@ if ($scriptName !== '/' && $scriptName !== '\\') {
 
 $path = '/' . trim($path, '/');
 
-/* Read + decrypt request payload */
-// This function reads the raw JSON input from the request body, checks for the presence of an encrypted payload, and decrypts it using AES encryption. It returns the decrypted data as an associative array. If any step fails (invalid JSON, missing payload, decryption failure), it sends an appropriate error response.
+/*------------------------------------------ Read + decrypt request payload------------------------------------ */
+
 function getEncryptedData(): array
 {
     $body = json_decode(file_get_contents('php://input'), true);
@@ -86,18 +86,13 @@ function getEncryptedData(): array
     return $data;
 }
 
-/* GET /csrf-token */
+// ---------------------------------------------------GET /csrf-token---------------------------------------------
 
 if ($method === 'GET' && str_contains($path, '/csrf-token')) {
     $token = CSRF::generate();
     $_SESSION['csrf_token'] = $token;
 
-    echo json_encode([
-        'status' => true,
-        'message' => 'CSRF token generated',
-        'data' => ['csrf_token' => $token]
-    ]);
-
+ Response::success( ['csrf_token' => $token], 'CSRF token generated');
     exit;
 }
 
@@ -105,17 +100,22 @@ if ($method === 'GET' && str_contains($path, '/csrf-token')) {
 
 $isPublicRoute =
     str_contains($path, '/tenant/register') ||
-    str_contains($path, '/register') ||
+    // str_contains($path, '/register') ||
     str_contains($path, '/login') ||
     str_contains($path, '/refresh');
 
 /* CSRF */
 
-if (!$isPublicRoute) {
+// if (
+//     !$isPublicRoute ||
+//     str_contains($path, '/login') ||
+//     str_contains($path, '/tenant/register') ||
+//     str_contains($path, '/refresh') 
+// ) {
     CsrfMiddleware::handle();
-}
+// }
 
-/* POST /tenant/register */
+//------------------------------------------------------ POST /tenant/register---------------------------------------------------
 
 if ($method === 'POST' && preg_match('#^/tenant/register/?$#', $path)) {
     $data = getEncryptedData();
@@ -128,7 +128,7 @@ if ($method === 'POST' && preg_match('#^/tenant/register/?$#', $path)) {
     exit;
 }
 
-/* POST /login */
+/* ---------------------------------------------------POST /login------------------------------------------------------ */
 
 if ($method === 'POST' && str_contains($path, '/login')) {
     $data = getEncryptedData();
@@ -158,7 +158,7 @@ if ($method === 'POST' && str_contains($path, '/login')) {
     exit;
 }
 
-/* POST /refresh */
+/*------------------------------------------------- POST /refresh ------------------------------------------------------------*/
 
 if ($method === 'POST' && str_contains($path, '/refresh')) {
     $data = getEncryptedData();
@@ -187,7 +187,7 @@ if ($method === 'POST' && str_contains($path, '/refresh')) {
     exit;
 }
 
-/* Authenticate protected request */
+/*--------------------------------------------- Authenticate protected request----------------------------------------- */
 
 if (!$isPublicRoute) {
     $jwtSecret = $_ENV['JWT_SECRET'];
@@ -196,10 +196,10 @@ if (!$isPublicRoute) {
     $userId = (int)$payload['user_id'];
     $tenantId = (int)$payload['tenant_id'];
 
-    TenantMiddleware::validate(
-        $tenantId,
-        (int)$payload['tenant_id']
-    );
+    // TenantMiddleware::validate(
+    //     $tenantId,
+    //     (int)$payload['tenant_id']
+    // );
 
     $tenantResolver = new TenantResolver($masterPdo);
     $tenant = $tenantResolver->resolveById($tenantId);
@@ -225,7 +225,7 @@ $patientController = new PatientController($patientService);
 $appointmentController = new AppointmentController($appointmentService);
 $calendarController = new CalendarController($calendarService);
 
-/* POST /change-password */
+/*--------------     POST/change-password */
 
 if ($method === 'POST' && str_contains($path, '/change-password')) {
     $data = getEncryptedData();
@@ -233,21 +233,21 @@ if ($method === 'POST' && str_contains($path, '/change-password')) {
     exit;
 }
 
-/* POST /logout */
+/*---------------     POST /logout */
 
 if ($method === 'POST' && str_contains($path, '/logout')) {
     $authController->logout($userId);
     exit;
 }
 
-/* GET /profile */
+/*-----------------    GET /profile */
 
 if ($method === 'GET' && str_contains($path, '/profile')) {
     $userController->profile($userId, $tenantId);
     exit;
 }
 
-/* PUT profile */
+/*-----------------    PUT /profile */
 
 if ($method === 'PUT' && str_contains($path, '/profile')) {
     $data = getEncryptedData();
@@ -255,7 +255,7 @@ if ($method === 'PUT' && str_contains($path, '/profile')) {
     exit;
 }
 
-/* USER MANAGEMENT */
+/*-------------------------------------       USER MANAGEMENT       -----------------------------------------------------------*/
 
 if ($method === 'POST' && preg_match('#/users/?$#', $path)) {
     RoleMiddleware::handle($payload, ['Admin'], $tenantPdo);
@@ -336,7 +336,7 @@ if ($method === 'GET' && preg_match('#/users/(\d+)/?$#', $path, $matches)) {
     exit;
 }
 
-/* PATIENT MANAGEMENT */
+/*------------------------------------------------ PATIENT MANAGEMENT------------------------------------------------------ */
 
 if ($method === 'GET' && preg_match('#/patients/?$#', $path)) {
     RoleMiddleware::handle(
@@ -409,7 +409,7 @@ if ($method === 'DELETE' && preg_match('#/patients/(\d+)/?$#', $path, $matches))
     exit;
 }
 
-/* APPOINTMENT MANAGEMENT */
+/*-------------------------------------------------- APPOINTMENT MANAGEMEN----------------------------------------------------T */
 
 if ($method === 'GET' && preg_match('#/appointments/?$#', $path)) {
     RoleMiddleware::handle(
@@ -500,7 +500,7 @@ if ($method === 'PUT' && preg_match('#/appointments/(\d+)/cancel/?$#', $path, $m
     exit;
 }
 
-/* CALENDAR */
+/* --------------------------------------------------CALENDAR------------------------------------------------------------ */
 
 if ($method === 'GET' && str_contains($path, '/calendar/day')) {
     RoleMiddleware::handle(
@@ -581,7 +581,7 @@ if (
     exit;
 }
 
-/* PRESCRIPTION ROUTES */
+/*------------------------------------------------- PRESCRIPTION ROUTES----------------------------------------------------- */
 
 // POST /prescriptions create a new prescription
 if ($method === 'POST' && preg_match('#/prescriptions/?$#', $path)) {
@@ -749,7 +749,7 @@ if ($method === 'PATCH' && preg_match(
     exit;
 }
 
-/* NOTE ROUTES */
+/*------------------------------------------------ NOTE ROUTES------------------------------------------------------------- */
 
 // POST /notes create a new note
 if ($method === 'POST' && preg_match('#^/notes/?$#', $path)) {
@@ -911,8 +911,8 @@ if ($method === 'DELETE' && preg_match('#^/notes/(\d+)/?$#', $path, $matches)) {
     exit;
 }
 
-/* DASHBOARD ROUTES */
-// GET /dashboard fetch dashboard data like total patients, appointments, and revenue 
+/*---------------------------------------------------------------- DASHBOARD ROUTES ---------------------------------------------*/
+
 if ($method === 'GET' && preg_match('#^/dashboard/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
@@ -936,7 +936,7 @@ if ($method === 'GET' && preg_match('#^/dashboard/?$#', $path)) {
     exit;
 }
 
-/* BILLING ROUTES */
+/* ----------------------------------------------------BILLING ROUTES---------- ---------------------------------------------*/
 
 // ========================================
 // CREATE INVOICE
@@ -946,7 +946,8 @@ if ($method === 'GET' && preg_match('#^/dashboard/?$#', $path)) {
 if ($method === 'POST' && preg_match('#^/billing/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin'],
+        ['Admin','Provider'],
+        
         $tenantPdo
     );
 
@@ -1082,7 +1083,7 @@ if ($method === 'GET' && preg_match('#^/billing/(\d+)/?$#', $path, $matches)) {
 if ($method === 'PUT' && preg_match('#^/billing/(\d+)/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin'],
+        ['Admin', 'Provider'],
         $tenantPdo
     );
 
@@ -1116,7 +1117,7 @@ if ($method === 'DELETE' && preg_match('#^/billing/(\d+)/?$#', $path, $matches))
 
     RoleMiddleware::handle(
         $payload,
-        ['Admin'],
+        ['Admin', 'Provider'],
         $tenantPdo
     );
 
@@ -1153,7 +1154,7 @@ if ($method === 'PATCH' && preg_match(
     $matches )) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin'],
+        ['Admin', 'Provider'],
         $tenantPdo
     );
     try {
@@ -1177,9 +1178,7 @@ if ($method === 'PATCH' && preg_match(
     exit;
 }
 
-
-
-/* STAFF ROUTES */
+/*---------------------------------------------------- STAFF ROUTES-------------------------------------------------------- */
 
 // ========================================
 // CREATE STAFF
@@ -1400,6 +1399,6 @@ if ($method === 'PATCH' && preg_match(
     exit;
 }
 
-/* Route not found */
+/*------------------------------------------------------ Route not found--------------------------------------------------- */
 
 Response::error('Route not found', 404);
