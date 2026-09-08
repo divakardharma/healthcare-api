@@ -14,10 +14,7 @@ public function __construct(PDO $pdo)
     // Create Prescription
     // ========================================
    public function create(array $input): array
-{
-    
-        
-        
+{  
         $patientId = $input['patient_id'] ?? 0;
         $providerId = $input['provider_id'] ?? 0;
         $appointmentId = $input['appointment_id'] ?? null;
@@ -65,34 +62,34 @@ public function __construct(PDO $pdo)
     // ========================================
     // Update Prescription
     // ========================================
-    public function update(int $prescriptionId): array
-    {
-        $input = json_decode(
-            file_get_contents('php://input'),
-            true
-        );
-        if (!is_array($input)) {
-            throw new Exception('Invalid JSON request');
-        }
-        $patientId = $input['patient_id'] ?? 0;
-        $providerId = $input['provider_id'] ?? 0;
-        $appointmentId = $input['appointment_id'] ?? null;
-        $notes = $input['notes'] ?? '';
-        $status = $input['status'] ?? 'Pending';
-        $items = $input['items'] ?? [];
-        $this->prescriptionService->updatePrescription(
-            $prescriptionId,
-            (int)$patientId,
-            (int)$providerId,
-            $appointmentId ? (int)$appointmentId : null,
-            $notes,
-            $status,
-            $items
-        );
-        return [
-            'message' => 'Prescription updated successfully'
-        ];
-    }
+public function update(
+    int $prescriptionId,
+    array $input
+): array
+{
+    $patientId = $input['patient_id'] ?? 0;
+    $providerId = $input['provider_id'] ?? 0;
+    $appointmentId = $input['appointment_id'] ?? null;
+    $notes = $input['notes'] ?? '';
+    $status = $input['status'] ?? 'Pending';
+    $items = $input['items'] ?? [];
+
+    $this->prescriptionService->updatePrescription(
+        $prescriptionId,
+        (int)$patientId,
+        (int)$providerId,
+        $appointmentId ? (int)$appointmentId : null,
+        $notes,
+        $status,
+        $items
+    );
+
+    return [
+        'message' => 'Prescription updated successfully'
+    ];
+}
+
+
 
     // ========================================
     // Delete Prescription
@@ -110,22 +107,20 @@ public function __construct(PDO $pdo)
     // ========================================
     // Update Prescription Status
     // ========================================
-    public function updateStatus(int $prescriptionId): array
-    {
-        $input = json_decode(
-            file_get_contents('php://input'),
-            true
-        );
-        if (!is_array($input)) {
-            throw new Exception('Invalid JSON request');
-        }
-        $status = $input['status'] ?? '';
-        $this->prescriptionService->updateStatus(
-            $prescriptionId,
-            $status
-        );
-        return [
-            'message' => 'Prescription status updated successfully'
-        ];
-    }
+public function updateStatus(
+    int $prescriptionId,
+    array $input
+): array
+{
+    $status = $input['status'] ?? '';
+
+    $this->prescriptionService->updateStatus(
+        $prescriptionId,
+        $status
+    );
+
+    return [
+        'message' => 'Prescription status updated successfully'
+    ];
+}
 }

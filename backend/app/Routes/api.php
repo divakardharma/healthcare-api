@@ -52,7 +52,7 @@ if ($scriptName !== '/' && $scriptName !== '\\') {
 $path = '/' . trim($path, '/');
 
 /* Read + decrypt request payload */
-
+// This function reads the raw JSON input from the request body, checks for the presence of an encrypted payload, and decrypts it using AES encryption. It returns the decrypted data as an associative array. If any step fails (invalid JSON, missing payload, decryption failure), it sends an appropriate error response.
 function getEncryptedData(): array
 {
     $body = json_decode(file_get_contents('php://input'), true);
@@ -592,6 +592,7 @@ if ($method === 'POST' && preg_match('#/prescriptions/?$#', $path)) {
     );
 
     try {
+        // Read and decrypt the encrypted data
         $data = getEncryptedData();
         
         $controller = new PrescriptionController($tenantPdo);
@@ -609,6 +610,7 @@ if ($method === 'POST' && preg_match('#/prescriptions/?$#', $path)) {
     exit;
 }
 
+// GET /prescriptions fetch all prescriptions
 if ($method === 'GET' && preg_match('#/prescriptions/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
@@ -632,6 +634,7 @@ if ($method === 'GET' && preg_match('#/prescriptions/?$#', $path)) {
     exit;
 }
 
+// GET /prescriptions/{id} fetch a prescription by ID
 if ($method === 'GET' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
@@ -655,7 +658,9 @@ if ($method === 'GET' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches
     exit;
 }
 
+// PUT /prescriptions/{id} update a prescription by ID
 if ($method === 'PUT' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches)) {
+
     RoleMiddleware::handle(
         $payload,
         ['Admin', 'Provider'],
@@ -663,14 +668,21 @@ if ($method === 'PUT' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches
     );
 
     try {
+        $data = getEncryptedData();
+
         $controller = new PrescriptionController($tenantPdo);
-        $result = $controller->update((int)$matches[1]);
+
+        $result = $controller->update(
+            (int)$matches[1],
+            $data
+        );
 
         Response::success(
             [],
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
         Response::error($e->getMessage(), 400);
     }
@@ -678,6 +690,7 @@ if ($method === 'PUT' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches
     exit;
 }
 
+// DELETE /prescriptions/{id} delete a prescription by ID
 if ($method === 'DELETE' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
@@ -701,7 +714,12 @@ if ($method === 'DELETE' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matc
     exit;
 }
 
-if ($method === 'PATCH' && preg_match('#/prescriptions/(\d+)/status/?$#', $path, $matches)) {
+// PATCH /prescriptions/{id}/status update the status of a prescription by ID
+if ($method === 'PATCH' && preg_match(
+    '#/prescriptions/(\d+)/status/?$#',
+    $path,
+    $matches
+)) {
     RoleMiddleware::handle(
         $payload,
         ['Admin', 'Pharmacist'],
@@ -709,14 +727,21 @@ if ($method === 'PATCH' && preg_match('#/prescriptions/(\d+)/status/?$#', $path,
     );
 
     try {
+        $data = getEncryptedData();
+
         $controller = new PrescriptionController($tenantPdo);
-        $result = $controller->updateStatus((int)$matches[1]);
+
+        $result = $controller->updateStatus(
+            (int)$matches[1],
+            $data
+        );
 
         Response::success(
             [],
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
         Response::error($e->getMessage(), 400);
     }
@@ -726,6 +751,7 @@ if ($method === 'PATCH' && preg_match('#/prescriptions/(\d+)/status/?$#', $path,
 
 /* NOTE ROUTES */
 
+// POST /notes create a new note
 if ($method === 'POST' && preg_match('#^/notes/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
@@ -734,14 +760,20 @@ if ($method === 'POST' && preg_match('#^/notes/?$#', $path)) {
     );
 
     try {
+        // Decrypt request payload
+        $data = getEncryptedData();
+
         $controller = new NoteController($tenantPdo);
-        $result = $controller->create();
+
+        // Pass decrypted data
+        $result = $controller->create($data);
 
         Response::success(
             $result,
             $result['message'],
             201
         );
+
     } catch (Exception $e) {
         Response::error($e->getMessage(), 400);
     }
@@ -749,6 +781,7 @@ if ($method === 'POST' && preg_match('#^/notes/?$#', $path)) {
     exit;
 }
 
+// GET /notes fetch all notes
 if ($method === 'GET' && preg_match('#^/notes/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
@@ -772,6 +805,7 @@ if ($method === 'GET' && preg_match('#^/notes/?$#', $path)) {
     exit;
 }
 
+// GET /notes/{id} fetch a note by ID
 if ($method === 'GET' && preg_match('#^/notes/(\d+)/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
@@ -795,6 +829,7 @@ if ($method === 'GET' && preg_match('#^/notes/(\d+)/?$#', $path, $matches)) {
     exit;
 }
 
+// GET /appointments/{id}/notes fetch notes by appointment ID
 if ($method === 'GET' && preg_match('#^/appointments/(\d+)/notes/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
@@ -818,6 +853,7 @@ if ($method === 'GET' && preg_match('#^/appointments/(\d+)/notes/?$#', $path, $m
     exit;
 }
 
+// PUT /notes/{id} update a note by ID
 if ($method === 'PUT' && preg_match('#^/notes/(\d+)/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
@@ -826,14 +862,23 @@ if ($method === 'PUT' && preg_match('#^/notes/(\d+)/?$#', $path, $matches)) {
     );
 
     try {
+        // Decrypt request payload
+        $data = getEncryptedData();
+
         $controller = new NoteController($tenantPdo);
-        $result = $controller->update((int)$matches[1]);
+
+        // Pass decrypted data
+        $result = $controller->update(
+            (int)$matches[1],
+            $data
+        );
 
         Response::success(
             [],
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
         Response::error($e->getMessage(), 400);
     }
@@ -841,6 +886,7 @@ if ($method === 'PUT' && preg_match('#^/notes/(\d+)/?$#', $path, $matches)) {
     exit;
 }
 
+// DELETE /notes/{id} delete a note by ID
 if ($method === 'DELETE' && preg_match('#^/notes/(\d+)/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
@@ -865,11 +911,11 @@ if ($method === 'DELETE' && preg_match('#^/notes/(\d+)/?$#', $path, $matches)) {
 }
 
 /* DASHBOARD ROUTES */
-
+// GET /dashboard fetch dashboard data like total patients, appointments, and revenue 
 if ($method === 'GET' && preg_match('#^/dashboard/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin', 'Provider', 'Nurse'],
+        ['Admin', 'Provider'],
         $tenantPdo
     );
 
@@ -891,6 +937,11 @@ if ($method === 'GET' && preg_match('#^/dashboard/?$#', $path)) {
 
 /* BILLING ROUTES */
 
+// ========================================
+// CREATE INVOICE
+// POST /billing
+// ========================================
+
 if ($method === 'POST' && preg_match('#^/billing/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
@@ -899,11 +950,13 @@ if ($method === 'POST' && preg_match('#^/billing/?$#', $path)) {
     );
 
     try {
+        $data = getEncryptedData();
+
         $controller = new BillingController($tenantPdo);
-        $result = $controller->create();
+        $result = $controller->create($data);
 
         Response::success(
-            $result,
+            ['billing_id' => $result['billing_id']],
             $result['message'],
             201
         );
@@ -914,7 +967,12 @@ if ($method === 'POST' && preg_match('#^/billing/?$#', $path)) {
     exit;
 }
 
-if ($method === 'GET' && preg_match('#^/billing/?$#', $path)) {
+// ========================================
+// GET ALL INVOICES
+// GET /billing
+// ========================================
+
+if ($method === 'GET' && preg_match('#^/billing/?$#', $path)){
     RoleMiddleware::handle(
         $payload,
         ['Admin', 'Provider', 'Nurse'],
@@ -922,7 +980,9 @@ if ($method === 'GET' && preg_match('#^/billing/?$#', $path)) {
     );
 
     try {
+
         $controller = new BillingController($tenantPdo);
+
         $result = $controller->getAll();
 
         Response::success(
@@ -930,14 +990,26 @@ if ($method === 'GET' && preg_match('#^/billing/?$#', $path)) {
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
-        Response::error($e->getMessage(), 400);
+
+        Response::error(
+            $e->getMessage(),
+            400
+        );
     }
 
     exit;
 }
 
+
+// ========================================
+// PAYMENT SUMMARY
+// GET /billing/summary
+// ========================================
+
 if ($method === 'GET' && preg_match('#^/billing/summary/?$#', $path)) {
+
     RoleMiddleware::handle(
         $payload,
         ['Admin', 'Provider', 'Nurse'],
@@ -945,7 +1017,9 @@ if ($method === 'GET' && preg_match('#^/billing/summary/?$#', $path)) {
     );
 
     try {
+
         $controller = new BillingController($tenantPdo);
+
         $result = $controller->getPaymentSummary();
 
         Response::success(
@@ -953,13 +1027,21 @@ if ($method === 'GET' && preg_match('#^/billing/summary/?$#', $path)) {
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
-        Response::error($e->getMessage(), 400);
+
+        Response::error(
+            $e->getMessage(),
+            400
+        );
     }
 
     exit;
 }
 
+
+// GET BILLING BY ID
+// GET /billing/{id}
 if ($method === 'GET' && preg_match('#^/billing/(\d+)/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
@@ -968,21 +1050,34 @@ if ($method === 'GET' && preg_match('#^/billing/(\d+)/?$#', $path, $matches)) {
     );
 
     try {
+
         $controller = new BillingController($tenantPdo);
-        $result = $controller->getById((int)$matches[1]);
+
+        $result = $controller->getById(
+            (int)$matches[1]
+        );
 
         Response::success(
             $result['data'],
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
-        Response::error($e->getMessage(), 404);
+
+        Response::error(
+            $e->getMessage(),
+            404
+        );
     }
 
     exit;
 }
 
+
+// ========================================
+// UPDATE INVOICE
+// PUT /billing/{id}
 if ($method === 'PUT' && preg_match('#^/billing/(\d+)/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
@@ -991,8 +1086,13 @@ if ($method === 'PUT' && preg_match('#^/billing/(\d+)/?$#', $path, $matches)) {
     );
 
     try {
+        $data = getEncryptedData();
+
         $controller = new BillingController($tenantPdo);
-        $result = $controller->update((int)$matches[1]);
+        $result = $controller->update(
+            (int)$matches[1],
+            $data
+        );
 
         Response::success(
             [],
@@ -1005,8 +1105,14 @@ if ($method === 'PUT' && preg_match('#^/billing/(\d+)/?$#', $path, $matches)) {
 
     exit;
 }
+
+// ========================================
+// DELETE INVOICE
+// DELETE /billing/{id}
+// ========================================
 
 if ($method === 'DELETE' && preg_match('#^/billing/(\d+)/?$#', $path, $matches)) {
+
     RoleMiddleware::handle(
         $payload,
         ['Admin'],
@@ -1014,31 +1120,50 @@ if ($method === 'DELETE' && preg_match('#^/billing/(\d+)/?$#', $path, $matches))
     );
 
     try {
+
         $controller = new BillingController($tenantPdo);
-        $result = $controller->delete((int)$matches[1]);
+
+        $result = $controller->delete(
+            (int)$matches[1]
+        );
 
         Response::success(
             [],
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
-        Response::error($e->getMessage(), 404);
+
+        Response::error(
+            $e->getMessage(),
+            404
+        );
     }
 
     exit;
 }
 
-if ($method === 'PATCH' && preg_match('#^/billing/(\d+)/status/?$#', $path, $matches)) {
+// UPDATE PAYMENT STATUS
+// PATCH /billing/{id}/status
+if ($method === 'PATCH' && preg_match(
+    '#^/billing/(\d+)/status/?$#',
+    $path,
+    $matches )) {
     RoleMiddleware::handle(
         $payload,
         ['Admin'],
         $tenantPdo
     );
-
     try {
+        $data = getEncryptedData();
+
         $controller = new BillingController($tenantPdo);
-        $result = $controller->updatePaymentStatus((int)$matches[1]);
+
+        $result = $controller->updatePaymentStatus(
+            (int)$matches[1],
+            $data
+        );
 
         Response::success(
             [],
@@ -1048,34 +1173,51 @@ if ($method === 'PATCH' && preg_match('#^/billing/(\d+)/status/?$#', $path, $mat
     } catch (Exception $e) {
         Response::error($e->getMessage(), 400);
     }
-
     exit;
 }
+
+
 
 /* STAFF ROUTES */
 
-if ($method === 'POST' && preg_match('#^/staff/?$#', $path)) {
+// ========================================
+// CREATE STAFF
+// POST /staff
+// ========================================
+
+if ($method === 'POST' && preg_match('#^/staff/?$#', $path)){
     RoleMiddleware::handle(
         $payload,
         ['Admin'],
-        $tenantPdo
-    );
-
+        $tenantPdo);
     try {
+        // Decrypt request payload
+        $data = getEncryptedData();
+
         $controller = new StaffController($tenantPdo);
-        $result = $controller->create();
+
+        $result = $controller->create($data);
 
         Response::success(
-            $result,
+            [
+                'staff_id' => $result['staff_id']
+            ],
             $result['message'],
             201
         );
+
     } catch (Exception $e) {
         Response::error($e->getMessage(), 400);
     }
 
     exit;
 }
+
+
+// ========================================
+// GET ALL STAFF
+// GET /staff
+// ========================================
 
 if ($method === 'GET' && preg_match('#^/staff/?$#', $path)) {
     RoleMiddleware::handle(
@@ -1083,9 +1225,9 @@ if ($method === 'GET' && preg_match('#^/staff/?$#', $path)) {
         ['Admin'],
         $tenantPdo
     );
-
     try {
         $controller = new StaffController($tenantPdo);
+
         $result = $controller->getAll();
 
         Response::success(
@@ -1093,6 +1235,7 @@ if ($method === 'GET' && preg_match('#^/staff/?$#', $path)) {
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
         Response::error($e->getMessage(), 400);
     }
@@ -1100,7 +1243,17 @@ if ($method === 'GET' && preg_match('#^/staff/?$#', $path)) {
     exit;
 }
 
-if ($method === 'GET' && preg_match('#^/staff/(\d+)/?$#', $path, $matches)) {
+
+// ========================================
+// GET STAFF BY ID
+// GET /staff/{id}
+// ========================================
+
+if ($method === 'GET' && preg_match(
+    '#^/staff/(\d+)/?$#',
+    $path,
+    $matches
+)) {
     RoleMiddleware::handle(
         $payload,
         ['Admin'],
@@ -1109,13 +1262,17 @@ if ($method === 'GET' && preg_match('#^/staff/(\d+)/?$#', $path, $matches)) {
 
     try {
         $controller = new StaffController($tenantPdo);
-        $result = $controller->getById((int)$matches[1]);
+
+        $result = $controller->getById(
+            (int)$matches[1]
+        );
 
         Response::success(
             $result['data'],
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
         Response::error($e->getMessage(), 404);
     }
@@ -1123,7 +1280,17 @@ if ($method === 'GET' && preg_match('#^/staff/(\d+)/?$#', $path, $matches)) {
     exit;
 }
 
-if ($method === 'PUT' && preg_match('#^/staff/(\d+)/?$#', $path, $matches)) {
+
+// ========================================
+// UPDATE STAFF
+// PUT /staff/{id}
+// ========================================
+
+if ($method === 'PUT' && preg_match(
+    '#^/staff/(\d+)/?$#',
+    $path,
+    $matches
+)) {
     RoleMiddleware::handle(
         $payload,
         ['Admin'],
@@ -1131,14 +1298,22 @@ if ($method === 'PUT' && preg_match('#^/staff/(\d+)/?$#', $path, $matches)) {
     );
 
     try {
+        // Decrypt request payload
+        $data = getEncryptedData();
+
         $controller = new StaffController($tenantPdo);
-        $result = $controller->update((int)$matches[1]);
+
+        $result = $controller->update(
+            (int)$matches[1],
+            $data
+        );
 
         Response::success(
             [],
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
         Response::error($e->getMessage(), 400);
     }
@@ -1146,7 +1321,17 @@ if ($method === 'PUT' && preg_match('#^/staff/(\d+)/?$#', $path, $matches)) {
     exit;
 }
 
-if ($method === 'DELETE' && preg_match('#^/staff/(\d+)/?$#', $path, $matches)) {
+
+// ========================================
+// DELETE STAFF
+// DELETE /staff/{id}
+// ========================================
+
+if ($method === 'DELETE' && preg_match(
+    '#^/staff/(\d+)/?$#',
+    $path,
+    $matches
+)) {
     RoleMiddleware::handle(
         $payload,
         ['Admin'],
@@ -1155,13 +1340,17 @@ if ($method === 'DELETE' && preg_match('#^/staff/(\d+)/?$#', $path, $matches)) {
 
     try {
         $controller = new StaffController($tenantPdo);
-        $result = $controller->delete((int)$matches[1]);
+
+        $result = $controller->delete(
+            (int)$matches[1]
+        );
 
         Response::success(
             [],
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
         Response::error($e->getMessage(), 404);
     }
@@ -1169,7 +1358,17 @@ if ($method === 'DELETE' && preg_match('#^/staff/(\d+)/?$#', $path, $matches)) {
     exit;
 }
 
-if ($method === 'PATCH' && preg_match('#^/staff/(\d+)/status/?$#', $path, $matches)) {
+
+// ========================================
+// UPDATE STAFF STATUS
+// PATCH /staff/{id}/status
+// ========================================
+
+if ($method === 'PATCH' && preg_match(
+    '#^/staff/(\d+)/status/?$#',
+    $path,
+    $matches
+)) {
     RoleMiddleware::handle(
         $payload,
         ['Admin'],
@@ -1177,14 +1376,22 @@ if ($method === 'PATCH' && preg_match('#^/staff/(\d+)/status/?$#', $path, $match
     );
 
     try {
+        // Decrypt request payload
+        $data = getEncryptedData();
+
         $controller = new StaffController($tenantPdo);
-        $result = $controller->updateStatus((int)$matches[1]);
+
+        $result = $controller->updateStatus(
+            (int)$matches[1],
+            $data
+        );
 
         Response::success(
             [],
             $result['message'],
             200
         );
+
     } catch (Exception $e) {
         Response::error($e->getMessage(), 400);
     }
