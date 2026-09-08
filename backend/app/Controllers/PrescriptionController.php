@@ -13,15 +13,11 @@ public function __construct(PDO $pdo)
     // ========================================
     // Create Prescription
     // ========================================
-    public function create(): array
-    {
-        $input = json_decode(
-            file_get_contents('php://input'),
-            true
-        );
-        if (!is_array($input)) {
-            throw new Exception('Invalid JSON request');
-        }
+   public function create(array $input): array
+{
+    
+        
+        
         $patientId = $input['patient_id'] ?? 0;
         $providerId = $input['provider_id'] ?? 0;
         $appointmentId = $input['appointment_id'] ?? null;

@@ -247,7 +247,7 @@ if ($method === 'GET' && str_contains($path, '/profile')) {
     exit;
 }
 
-/* PUT /profile */
+/* PUT profile */
 
 if ($method === 'PUT' && str_contains($path, '/profile')) {
     $data = getEncryptedData();
@@ -583,6 +583,7 @@ if (
 
 /* PRESCRIPTION ROUTES */
 
+// POST /prescriptions create a new prescription
 if ($method === 'POST' && preg_match('#/prescriptions/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
@@ -591,8 +592,10 @@ if ($method === 'POST' && preg_match('#/prescriptions/?$#', $path)) {
     );
 
     try {
+        $data = getEncryptedData();
+        
         $controller = new PrescriptionController($tenantPdo);
-        $result = $controller->create();
+        $result = $controller->create($data);
 
         Response::success(
             ['prescription_id' => $result['prescription_id']],
