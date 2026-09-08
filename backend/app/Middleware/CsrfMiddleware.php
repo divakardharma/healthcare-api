@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../Security/CSRF.php';
+require_once __DIR__ . '/../Helpers/Response.php';
 
 class CsrfMiddleware
 {
@@ -8,15 +9,12 @@ class CsrfMiddleware
     {
         $method = $_SERVER['REQUEST_METHOD'];
 
-        // GET requests usually don't change data,
-        // so CSRF validation is not required.
         if ($method === 'GET') {
             return;
         }
 
         $headers = getallheaders();
 
-        // Normalize header names
         $normalizedHeaders = [];
 
         foreach ($headers as $name => $value) {
@@ -24,51 +22,22 @@ class CsrfMiddleware
         }
 
         if (!isset($normalizedHeaders['x-csrf-token'])) {
-
-            http_response_code(403);
-
-            echo json_encode([
-                'status' => false,
-                'message' => 'CSRF token required'
-            ]);
-
-            exit;
+            Response::error('CSRF token required', 403);
         }
 
-        $token = trim(
-            $normalizedHeaders['x-csrf-token']
-        );
+        $token = trim($normalizedHeaders['x-csrf-token']);
 
         if ($token === '') {
-
-            http_response_code(403);
-
-            echo json_encode([
-                'status' => false,
-                'message' => 'CSRF token required'
-            ]);
-
-            exit;
+            Response::error('CSRF token required', 403);
         }
 
         $storedToken = $_SESSION['csrf_token'] ?? null;
 
         if (
             $storedToken === null ||
-            !CSRF::verify(
-                $token,
-                $storedToken
-            )
+            !CSRF::verify($token, $storedToken)
         ) {
-
-            http_response_code(403);
-
-            echo json_encode([
-                'status' => false,
-                'message' => 'Invalid CSRF token'
-            ]);
-
-            exit;
+            Response::error('Invalid CSRF token', 403);
         }
     }
 }

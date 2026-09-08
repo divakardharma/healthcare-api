@@ -75,28 +75,9 @@ CREATE TABLE refresh_tokens (
 );
 
 
--- ============================================
--- 5. CSRF TOKENS
--- ============================================
-
-CREATE TABLE csrf_tokens (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-
-    user_id INT NULL,
-
-    token_hash VARCHAR(255) NOT NULL,
-    expires_at DATETIME NOT NULL,
-
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (user_id)
-        REFERENCES users(id)
-        ON DELETE CASCADE
-);
-
 
 -- ============================================
--- 6. PATIENTS
+-- 5. PATIENTS
 -- ============================================
 
 CREATE TABLE patients (
@@ -127,7 +108,7 @@ CREATE TABLE patients (
 
 
 -- ============================================
--- 7. APPOINTMENTS
+-- 6. APPOINTMENTS
 -- ============================================
 
 CREATE TABLE appointments (
@@ -158,7 +139,7 @@ CREATE TABLE appointments (
 
 
 -- ============================================
--- 8. MEDICINES
+-- 7. MEDICINES
 -- ============================================
 
 CREATE TABLE medicines (
@@ -177,10 +158,11 @@ CREATE TABLE medicines (
 
 
 -- ============================================
--- 9. PRESCRIPTIONS
+-- 8. PRESCRIPTIONS
 -- ============================================
 
 CREATE TABLE prescriptions (
+
     id INT AUTO_INCREMENT PRIMARY KEY,
 
     patient_id INT NOT NULL,
@@ -209,7 +191,7 @@ CREATE TABLE prescriptions (
 
 
 -- ============================================
--- 10. PRESCRIPTION ITEMS
+-- 9. PRESCRIPTION ITEMS
 -- ============================================
 
 CREATE TABLE prescription_items (
@@ -234,7 +216,7 @@ CREATE TABLE prescription_items (
 
 
 -- ============================================
--- 11. HOSPITAL BILLING
+-- 10. HOSPITAL BILLING
 -- ============================================
 
 CREATE TABLE billing (
@@ -264,7 +246,7 @@ CREATE TABLE billing (
 
 
 -- ============================================
--- 12. STAFF
+-- 11. STAFF
 -- ============================================
 
 CREATE TABLE staff (
@@ -290,7 +272,7 @@ CREATE TABLE staff (
 
 
 -- ============================================
--- 13. APPOINTMENT NOTES
+-- 12. APPOINTMENT NOTES
 -- ============================================
 
 CREATE TABLE appointment_notes (

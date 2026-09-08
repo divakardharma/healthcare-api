@@ -7,18 +7,29 @@ $data = [
   
     //  "subdomain" => "abc",
 
-    // "refresh_token"=> "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ0ZW5hbnRfaWQiOjEsImlhdCI6MTc4ODY3NzI0MiwiZXhwIjoxNzg5MjgyMDQyfQ.ifYlfNnQIq9-AfNn-QK83wSjZhkVDRP55SDVrSpkHnQ"
+    // "refresh_token"=> "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJ0ZW5hbnRfaWQiOjIsImlhdCI6MTc4ODcwMjczOCwiZXhwIjoxNzg5MzA3NTM4fQ.SvYRy6DXKQ62Dh7l3sXE6tYnYEKKyFTGYk0yJbbYwbI",
 
-    // "name" => "ABC Hospital",
-    // "email" => "admin@abc.com",
-    "subdomain"=>"abc",
-    // "password" => "abc@12345"
+    // "name" => "XYZ Hospital",
+    // "email" => "admin@xyz.com",
+    // "subdomain"=>"xyz",
+    // "password" => "xyz@12345"
+
+    // "name"=> "DR Arun Kumar",
+// "age"=> 42,
+// "gender"=> "Male",
+// "phone"=> "9876543210",
+// "email"=> "arun@example.com",
 
 
-    //   "name"=> "Dr. Kumar",
-    "email"=> "doctor@abc.com",
-    "password"=> "Doctor@123",
+    //   "name"=> "nurse1",
+    // "email"=> "nurse@abc.com",
+    // "password"=> "provider@123",
     // "role"=> "Provider"
+
+   
+"appointment_id" =>"1",
+"note"=> "Patient reported improvement"
+
 ];
 
 $json = json_encode($data);
