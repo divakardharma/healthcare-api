@@ -26,6 +26,7 @@ require_once __DIR__ . '/../Repositories/RoleRepository.php';
 require_once __DIR__ . '/../Repositories/PatientRepository.php';
 require_once __DIR__ . '/../Repositories/AppointmentRepository.php';
 require_once __DIR__ . '/../Repositories/PrescriptionRepository.php';
+require_once __DIR__ . '/../Repositories/StaffRepository.php';
 
 require_once __DIR__ . '/../Middleware/AuthMiddleware.php';
 require_once __DIR__ . '/../Middleware/CsrfMiddleware.php';
@@ -212,10 +213,11 @@ $authController = new AuthController($tenantPdo);
 
 $userRepository = new UserRepository($tenantPdo);
 $roleRepository = new RoleRepository($tenantPdo);
+$staffRepository = new StaffRepository($tenantPdo);
 $patientRepository = new PatientRepository($tenantPdo);
 $appointmentRepository = new AppointmentRepository($tenantPdo);
 
-$userService = new UserService($userRepository, $roleRepository);
+$userService = new UserService($userRepository, $roleRepository, $staffRepository);
 $patientService = new PatientService($patientRepository);
 $appointmentService = new AppointmentService($appointmentRepository);
 $calendarService = new CalendarService($appointmentRepository);

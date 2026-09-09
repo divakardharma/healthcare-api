@@ -1,14 +1,17 @@
 <?php
 require_once __DIR__ . '/../Repositories/PrescriptionRepository.php';
 require_once __DIR__ . '/../Security/AES.php';
+require_once __DIR__ . '/../Repositories/PatientRepository.php';
 
 class PrescriptionService
 {
     private PrescriptionRepository $prescriptionRepository;
+    private PatientRepository $patientRepository;
 
    public function __construct(PDO $pdo)
 {
     $this->prescriptionRepository = new PrescriptionRepository($pdo);
+    $this->patientRepository = new PatientRepository($pdo);
 }
 
     // ========================================
@@ -23,6 +26,11 @@ class PrescriptionService
     ): int {
         if ($patientId <= 0) {
             throw new Exception('Valid patient ID is required');
+        }
+        $patient = $this->patientRepository->findById($patientId);
+
+        if (!$patient) {
+             throw new Exception('Patient not found');
         }
         if ($providerId <= 0) {
             throw new Exception('Valid provider ID is required');
@@ -133,6 +141,12 @@ class PrescriptionService
         if ($prescriptionId <= 0) {
             throw new Exception('Invalid prescription ID');
         }
+
+        $patient = $this->patientRepository->findById($patientId);
+
+       if (!$patient) {
+       throw new Exception('Patient not found');
+       }
         $existingPrescription = $this->prescriptionRepository->getById(
             $prescriptionId
         );

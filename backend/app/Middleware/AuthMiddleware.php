@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../Security/JWT.php';
+require_once __DIR__ . '/../Helpers/Response.php';
 
 class AuthMiddleware
 {
@@ -17,14 +18,10 @@ class AuthMiddleware
 
         if (!isset($normalizedHeaders['authorization'])) {
 
-            http_response_code(401);
-
-            echo json_encode([
-                'status' => false,
-                'message' => 'Authorization token required'
-            ]);
-
-            exit;
+            Response::error(
+                'Authorization token required',
+                401
+            );
         }
 
         $authorization = trim(
@@ -33,14 +30,10 @@ class AuthMiddleware
 
         if (!str_starts_with($authorization, 'Bearer ')) {
 
-            http_response_code(401);
-
-            echo json_encode([
-                'status' => false,
-                'message' => 'Invalid authorization format'
-            ]);
-
-            exit;
+            Response::error(
+                'Invalid authorization format',
+                401
+            );
         }
 
         $token = trim(
@@ -49,14 +42,10 @@ class AuthMiddleware
 
         if ($token === '') {
 
-            http_response_code(401);
-
-            echo json_encode([
-                'status' => false,
-                'message' => 'Authorization token required'
-            ]);
-
-            exit;
+            Response::error(
+                'Authorization token required',
+                401
+            );
         }
 
         // Verify JWT
@@ -67,14 +56,10 @@ class AuthMiddleware
 
         if ($payload === false) {
 
-            http_response_code(401);
-
-            echo json_encode([
-                'status' => false,
-                'message' => 'Invalid or expired token'
-            ]);
-
-            exit;
+            Response::error(
+                'Invalid or expired token',
+                401
+            );
         }
 
         // Check token belongs to current PHP session
@@ -86,14 +71,10 @@ class AuthMiddleware
             )
         ) {
 
-            http_response_code(401);
-
-            echo json_encode([
-                'status' => false,
-                'message' => 'Session expired or logged out'
-            ]);
-
-            exit;
+            Response::error(
+                'Session expired or logged out',
+                401
+            );
         }
 
         return $payload;

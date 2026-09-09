@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/../Helpers/Response.php';
+
 class RoleMiddleware
 {
     /**
@@ -18,14 +20,10 @@ class RoleMiddleware
 
         if (empty($payload['user_id'])) {
 
-            http_response_code(401);
-
-            echo json_encode([
-                'status' => false,
-                'message' => 'Unauthorized'
-            ]);
-
-            exit;
+            Response::error(
+                'Unauthorized',
+                401
+            );
         }
 
         $roles = self::getUserRoles(
@@ -42,15 +40,10 @@ class RoleMiddleware
             )
         ) {
 
-            http_response_code(403);
-
-            echo json_encode([
-                'status' => false,
-                'message' =>
-                    'You do not have permission to perform this action'
-            ]);
-
-            exit;
+            Response::error(
+                'You do not have permission to perform this action',
+                403
+            );
         }
     }
 

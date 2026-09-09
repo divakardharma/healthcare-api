@@ -2,11 +2,13 @@
 
 require_once __DIR__ . '/../Repositories/UserRepository.php';
 require_once __DIR__ . '/../Repositories/RoleRepository.php';
+require_once __DIR__ . '/../Repositories/StaffRepository.php';
 require_once __DIR__ . '/../Security/Hash.php';
 
 class UserService
 {
     private UserRepository $userRepository;
+    private StaffRepository $staffRepository;
     private RoleRepository $roleRepository;
 
     private const ALLOWED_ROLES = [
@@ -19,10 +21,12 @@ class UserService
 
     public function __construct(
         UserRepository $userRepository,
-        RoleRepository $roleRepository
+        RoleRepository $roleRepository,
+        StaffRepository $staffRepository
     ) {
         $this->userRepository = $userRepository;
         $this->roleRepository = $roleRepository;
+        $this->staffRepository = $staffRepository;
     }
 
 
@@ -117,6 +121,14 @@ class UserService
             $userId,
             (int) $roleRecord['id']
         );
+          // Auto-create staff record for non-Patient roles, default status Active
+        if ($role !== 'Patient') {
+            $this->staffRepository->create(
+                $userId,
+                (int) $roleRecord['id'],
+                'Active'
+            );
+        }
 
         return $this->getUser(
             $userId,
