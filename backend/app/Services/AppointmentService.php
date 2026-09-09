@@ -503,11 +503,16 @@ class AppointmentService
     | INPUT VALIDATION HELPERS
     |--------------------------------------------------------------------------
     */
-    private function isValidDate(string $date): bool
-    {
-        $parsed = DateTime::createFromFormat('Y-m-d', $date);
-        return $parsed !== false && $parsed->format('Y-m-d') === $date;
+ private function isValidDate(string $date): bool
+{
+    $parsed = DateTime::createFromFormat('Y-m-d', $date);
+
+    if ($parsed === false || $parsed->format('Y-m-d') !== $date) {
+        return false;
     }
+
+    return $date >= date('Y-m-d');
+}
 
     private function isValidTime(string $time): bool
     {
