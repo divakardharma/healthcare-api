@@ -1,0 +1,4 @@
+RewriteEngine On
+
+RewriteRule ^$ backend/public/ [L]
+RewriteRule ^(.*)$ backend/public/$1 [L]
