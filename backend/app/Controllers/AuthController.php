@@ -97,6 +97,17 @@ class AuthController
             |--------------------------------------------------------------------------
             */
 
+
+                        setcookie('refresh_token', $result['refresh_token'], [
+                'expires'  => time() + (int)($_ENV['JWT_REFRESH_EXPIRY'] ?? 604800),
+                'path'     => '/',
+                'secure'   => (bool)($_ENV['COOKIE_SECURE'] ?? true),
+                'httponly' => true,
+                'samesite' => 'Strict'
+            ]);
+
+            unset($result['refresh_token']);
+
             $result['csrf_token'] =
                 $_SESSION['csrf_token'] ?? null;
 
@@ -104,6 +115,14 @@ class AuthController
                 $result,
                 'Login successful'
             );
+
+            // $result['csrf_token'] =
+            //     $_SESSION['csrf_token'] ?? null;
+
+            // Response::success(
+            //     $result,
+            //     'Login successful'
+            // );
 
         } catch (Exception $e) {
 
@@ -171,9 +190,17 @@ class AuthController
 
         try {
 
-            $this->authService->logout(
+                       $this->authService->logout(
                 $userId
             );
+
+            setcookie('refresh_token', '', [
+                'expires'  => time() - 3600,
+                'path'     => '/',
+                'secure'   => (bool)($_ENV['COOKIE_SECURE'] ?? true),
+                'httponly' => true,
+                'samesite' => 'Strict'
+            ]);
 
             Response::success(
                 null,
@@ -212,16 +239,38 @@ class AuthController
 
         try {
 
-            $tokens =
+
+                    $tokens =
                 $this->authService->refresh(
                     $data['refresh_token'],
                     $jwtSecret
                 );
 
+            setcookie('refresh_token', $tokens['refresh_token'], [
+                'expires'  => time() + (int)($_ENV['JWT_REFRESH_EXPIRY'] ?? 604800),
+                'path'     => '/',
+                'secure'   => (bool)($_ENV['COOKIE_SECURE'] ?? true),
+                'httponly' => true,
+                'samesite' => 'Strict'
+            ]);
+
+            unset($tokens['refresh_token']);
+
             Response::success(
                 $tokens,
                 'Tokens refreshed successfully'
             );
+
+            // $tokens =
+            //     $this->authService->refresh(
+            //         $data['refresh_token'],
+            //         $jwtSecret
+            //     );
+
+            // Response::success(
+            //     $tokens,
+            //     'Tokens refreshed successfully'
+            // );
 
         } catch (Exception $e) {
 
