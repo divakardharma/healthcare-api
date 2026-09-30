@@ -87,6 +87,35 @@ function getEncryptedData(): array
     return $data;
 }
 
+
+
+
+
+
+
+function getSubdomainFromHost(): string
+{
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+
+    // Remove port number
+    // Example: gov.localhost:8080 -> gov.localhost
+    $host = preg_replace('/:\d+$/', '', $host);
+
+    // Local environment
+    // Example: gov.localhost -> gov
+    if (preg_match('/^([a-z0-9-]+)\.localhost$/i', $host, $matches)) {
+        return strtolower($matches[1]);
+    }
+
+    // Production environment
+    // Example: gov.heal.com -> gov
+    if (preg_match('/^([a-z0-9-]+)\.heal\.com$/i', $host, $matches)) {
+        return strtolower($matches[1]);
+    }
+
+    return '';
+}
+
 // ---------------------------------------------------GET /csrf-token---------------------------------------------
 
 if ($method === 'GET' && str_contains($path, '/csrf-token')) {
@@ -134,10 +163,10 @@ if ($method === 'POST' && preg_match('#^/tenant/register/?$#', $path)) {
 if ($method === 'POST' && str_contains($path, '/login')) {
     $data = getEncryptedData();
 
-    $subdomain = strtolower(trim($data['subdomain'] ?? ''));
+    $subdomain = getSubdomainFromHost();
 
     if ($subdomain === '') {
-        Response::error('Subdomain is required', 422);
+        Response::error('Invalid tenant subdomain', 400);
     }
 
     try {
@@ -164,10 +193,10 @@ if ($method === 'POST' && str_contains($path, '/login')) {
 if ($method === 'POST' && str_contains($path, '/refresh')) {
     $data = getEncryptedData();
 
-    $subdomain = strtolower(trim($data['subdomain'] ?? ''));
+    $subdomain = getSubdomainFromHost();
 
     if ($subdomain === '') {
-        Response::error('Subdomain is required', 422);
+        Response::error('Invalid tenant subdomain', 400);
     }
 
     $data['refresh_token'] = $_COOKIE['refresh_token'] ?? '';
@@ -195,18 +224,41 @@ if ($method === 'POST' && str_contains($path, '/refresh')) {
 if (!$isPublicRoute) {
     $jwtSecret = $_ENV['JWT_SECRET'];
 
+    // 1. Verify JWT
     $payload = AuthMiddleware::handle($jwtSecret);
+
     $userId = (int)$payload['user_id'];
-    $tenantId = (int)$payload['tenant_id'];
+    $jwtTenantId = (int)$payload['tenant_id'];
+    
+    $tenantId = $jwtTenantId;
 
-    // TenantMiddleware::validate(
-    //     $tenantId,
-    //     (int)$payload['tenant_id']
-    // );
+    // 2. Get tenant from URL
+    $subdomain = getSubdomainFromHost();
 
-    $tenantResolver = new TenantResolver($masterPdo);
-    $tenant = $tenantResolver->resolveById($tenantId);
-    $tenantPdo = $tenantResolver->connect($tenant);
+    if ($subdomain === '') {
+        Response::error('Invalid tenant subdomain', 400);
+    }
+
+    try {
+        $tenantResolver = new TenantResolver($masterPdo);
+
+        // 3. Find URL tenant from Master DB
+        $tenant = $tenantResolver->resolve($subdomain);
+
+        $urlTenantId = (int)$tenant['id'];
+
+        // 4. URL tenant must match JWT tenant
+        TenantMiddleware::validate(
+            $urlTenantId,
+            $jwtTenantId
+        );
+
+        // 5. Connect correct tenant DB
+        $tenantPdo = $tenantResolver->connect($tenant);
+
+    } catch (Exception $e) {
+        Response::error($e->getMessage(), 403);
+    }
 }
 
 /* Controllers */

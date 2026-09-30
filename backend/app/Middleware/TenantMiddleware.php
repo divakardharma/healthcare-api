@@ -1,18 +1,16 @@
 <?php
 
+require_once __DIR__ . '/../Helpers/Response.php';
+
 class TenantMiddleware
 {
-    public static function validate(int $tenantId, int $userTenantId): void
+    public static function validate(int $urlTenantId, int $jwtTenantId): void
     {
-        if ($tenantId !== $userTenantId) {
-            http_response_code(403);
-
-            echo json_encode([
-                'status' => false,
-                'message' => 'Tenant access denied'
-            ]);
-
-            exit;
+        if ($urlTenantId !== $jwtTenantId) {
+            Response::error(
+                'Tenant access denied',
+                403
+            );
         }
     }
 }
