@@ -223,61 +223,73 @@ class AuthController
     |--------------------------------------------------------------------------
     */
 
-    public function refresh(
-        array $data,
-        string $jwtSecret
-    ): void {
+public function refresh(
+    array $data,
+    string $jwtSecret
+): void {
 
-        if (
-            empty($data['refresh_token'])
-        ) {
-            Response::error(
-                'Refresh token is required',
-                422
-            );
-        }
+    /*
+    |--------------------------------------------------------------------------
+    | Get Refresh Token From HttpOnly Cookie
+    |--------------------------------------------------------------------------
+    */
 
-        try {
+    $refreshToken = $_COOKIE['refresh_token'] ?? '';
 
-
-                    $tokens =
-                $this->authService->refresh(
-                    $data['refresh_token'],
-                    $jwtSecret
-                );
-
-            setcookie('refresh_token', $tokens['refresh_token'], [
-                'expires'  => time() + (int)($_ENV['JWT_REFRESH_EXPIRY'] ?? 604800),
-                'path'     => '/',
-                'secure'   => (bool)($_ENV['COOKIE_SECURE'] ?? true),
-                'httponly' => true,
-                'samesite' => 'Strict'
-            ]);
-
-            unset($tokens['refresh_token']);
-
-            Response::success(
-                $tokens,
-                'Tokens refreshed successfully'
-            );
-
-            // $tokens =
-            //     $this->authService->refresh(
-            //         $data['refresh_token'],
-            //         $jwtSecret
-            //     );
-
-            // Response::success(
-            //     $tokens,
-            //     'Tokens refreshed successfully'
-            // );
-
-        } catch (Exception $e) {
-
-            Response::error(
-                $e->getMessage(),
-                401
-            );
-        }
+    if (empty($refreshToken)) {
+        Response::error(
+            'Refresh token is required',
+            401
+        );
     }
+
+    try {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Validate Old Refresh Token + Generate New Tokens
+        |--------------------------------------------------------------------------
+        */
+
+        $tokens =
+            $this->authService->refresh(
+                $refreshToken,
+                $jwtSecret
+            );
+
+        /*
+        |--------------------------------------------------------------------------
+        | Rotate Refresh Token Cookie
+        |--------------------------------------------------------------------------
+        */
+
+        setcookie('refresh_token', $tokens['refresh_token'], [
+            'expires'  => time() + (int)($_ENV['JWT_REFRESH_EXPIRY'] ?? 604800),
+            'path'     => '/',
+            'secure'   => (bool)($_ENV['COOKIE_SECURE'] ?? true),
+            'httponly' => true,
+            'samesite' => 'Strict'
+        ]);
+
+        /*
+        |--------------------------------------------------------------------------
+        | Never Expose Refresh Token To Frontend JavaScript
+        |--------------------------------------------------------------------------
+        */
+
+        unset($tokens['refresh_token']);
+
+        Response::success(
+            $tokens,
+            'Tokens refreshed successfully'
+        );
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            401
+        );
+    }
+}
 }

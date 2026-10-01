@@ -191,7 +191,6 @@ if ($method === 'POST' && str_contains($path, '/login')) {
 /*------------------------------------------------- POST /refresh ------------------------------------------------------------*/
 
 if ($method === 'POST' && str_contains($path, '/refresh')) {
-    $data = getEncryptedData();
 
     $subdomain = getSubdomainFromHost();
 
@@ -199,10 +198,8 @@ if ($method === 'POST' && str_contains($path, '/refresh')) {
         Response::error('Invalid tenant subdomain', 400);
     }
 
-    $data['refresh_token'] = $_COOKIE['refresh_token'] ?? '';
-
-    if (empty($data['refresh_token'])) {
-        Response::error('Refresh token cookie is missing', 422);
+    if (empty($_COOKIE['refresh_token'])) {
+        Response::error('Refresh token cookie is missing', 401);
     }
 
     try {
@@ -211,7 +208,9 @@ if ($method === 'POST' && str_contains($path, '/refresh')) {
         $tenantPdo = $tenantResolver->connect($tenant);
 
         $authController = new AuthController($tenantPdo);
-        $authController->refresh($data, $_ENV['JWT_SECRET']);
+
+        $authController->refresh([], $_ENV['JWT_SECRET']);
+
     } catch (Exception $e) {
         Response::error($e->getMessage(), 401);
     }
