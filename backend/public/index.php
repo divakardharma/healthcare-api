@@ -5,7 +5,7 @@ header('Content-Type: application/json');
 // CORS
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-if (preg_match('/^http:\/\/[a-z0-9-]+\.localhost:3000$/i', $origin)) {
+if (preg_match('/^http:\/\/(?:[a-z0-9-]+\.)?localhost:3000$/i', $origin)) {
     header("Access-Control-Allow-Origin: $origin");
 }
 
