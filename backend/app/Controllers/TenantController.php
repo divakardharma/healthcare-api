@@ -99,4 +99,26 @@ class TenantController
             );
         }
     }
+
+
+    public function config(string $subdomain): void
+{
+    try {
+
+        $tenant = $this->tenantService->getTenantConfig($subdomain);
+
+        Response::success(
+            $tenant,
+            'Tenant configuration fetched successfully.',
+            200
+        );
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+}
 }

@@ -158,6 +158,39 @@ if ($method === 'POST' && preg_match('#^/tenant/register/?$#', $path)) {
     exit;
 }
 
+
+if ($method === 'GET' && preg_match('#^/tenant/config/?$#', $path)) {
+
+    $subdomain = getSubdomainFromHost();
+
+    if ($subdomain === '') {
+        Response::error('Invalid tenant subdomain', 400);
+    }
+
+    try {
+
+        $provisioningService = new TenantProvisioningService($masterPdo);
+
+        $tenantService = new TenantService(
+            $masterPdo,
+            $provisioningService
+        );
+
+        $tenantController = new TenantController($tenantService);
+
+        $tenantController->config($subdomain);
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+
+    exit;
+}
+
 /* ---------------------------------------------------POST /login------------------------------------------------------ */
 
 if ($method === 'POST' && str_contains($path, '/login')) {
