@@ -5,16 +5,19 @@ require_once __DIR__ . '/../Repositories/RefreshTokenRepository.php';
 require_once __DIR__ . '/../Security/Hash.php';
 require_once __DIR__ . '/../Security/JWT.php';
 require_once __DIR__ . '/../Security/CSRF.php';
+require_once __DIR__ . '/../Repositories/RoleRepository.php';
 
 class AuthService
 {
     private UserRepository $userRepository;
     private RefreshTokenRepository $refreshTokenRepository;
+    private RoleRepository $roleRepository;
 
     public function __construct(PDO $pdo)
     {
         $this->userRepository = new UserRepository($pdo);
         $this->refreshTokenRepository = new RefreshTokenRepository($pdo);
+        $this->roleRepository = new RoleRepository($pdo);
     }
 
 
@@ -174,6 +177,10 @@ class AuthService
             $tokenHash,
             $expiresAt
         );
+
+
+        $user['roles'] = array_column(
+        $this->roleRepository->getRolesForUser((int) $user['id']), 'name');
 
 
         /*
@@ -446,6 +453,19 @@ class AuthService
         );
 
 
+        $user = $this->userRepository->findById((int) $payload['user_id']);
+
+if ($user === false) {
+    throw new Exception('User not found');
+}
+
+$user['roles'] = array_column(
+    $this->roleRepository->getRolesForUser((int) $user['id']),
+    'name'
+);
+
+unset($user['password']);
+
         /*
         |--------------------------------------------------------------------------
         | Update Session
@@ -472,6 +492,7 @@ class AuthService
 
 
         return [
+             'user'        => $user,
             'access_token'  => $accessToken,
             'refresh_token' => $newRefreshToken,
              'csrf_token'    => $csrfToken
