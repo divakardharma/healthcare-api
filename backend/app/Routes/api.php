@@ -353,7 +353,7 @@ if ($method === 'POST' && preg_match('#/users/?$#', $path)) {
 }
 
 if ($method === 'GET' && preg_match('#/users/?$#', $path)) {
-    RoleMiddleware::handle($payload, ['Admin'], $tenantPdo);
+    RoleMiddleware::handle($payload, ['Admin', 'Nurse', 'Provider'], $tenantPdo);
 
     $userController->index($tenantId);
     exit;
