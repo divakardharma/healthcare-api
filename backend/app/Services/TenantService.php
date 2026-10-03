@@ -66,4 +66,62 @@ class TenantService
             'status' => 'active'
         ];
     }
+
+
+
+    public function getTenantConfig(string $subdomain): array
+{
+    $stmt = $this->pdo->prepare("
+        SELECT
+            id,
+            name,
+            email,
+            subdomain,
+            status,
+            trial_end,
+            subscription_status
+        FROM tenants
+        WHERE subdomain = ?
+        LIMIT 1
+    ");
+
+    $stmt->execute([$subdomain]);
+
+    $tenant = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$tenant) {
+        throw new Exception("Tenant not found.");
+    }
+
+    if ($tenant['status'] !== 'active') {
+        throw new Exception("Tenant is not active.");
+    }
+
+    $stmt = $this->pdo->prepare("
+        SELECT meta_key, meta_value
+        FROM tenant_metadata
+        WHERE tenant_id = ?
+    ");
+
+    $stmt->execute([(int) $tenant['id']]);
+
+    $metadataRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $metadata = [];
+
+    foreach ($metadataRows as $row) {
+        $metadata[$row['meta_key']] = $row['meta_value'];
+    }
+
+    return [
+        'tenant_id' => (int) $tenant['id'],
+        'name' => $tenant['name'],
+        'email' => $tenant['email'],
+        'subdomain' => $tenant['subdomain'],
+        'status' => $tenant['status'],
+        'trial_end' => $tenant['trial_end'],
+        'subscription_status' => $tenant['subscription_status'],
+        'metadata' => $metadata,
+    ];
+}
 }
