@@ -7,7 +7,8 @@ class Response
     public static function success(
         mixed $data = null,
         string $message = 'Success',
-        int $code = 200
+        int $code = 200,
+        ?array $extra = null
     ): void {
 
         http_response_code($code);
@@ -17,6 +18,12 @@ class Response
             'message' => $message,
             'data' => $data
         ];
+
+        // Optional top-level keys (e.g. 'pagination'). Existing callers
+        // pass nothing, so their response shape is unchanged.
+        if ($extra !== null) {
+            $response = array_merge($response, $extra);
+        }
 
         $body = json_encode($response) ?: '{}';
         $aesKey = (string) ($_ENV['AES_KEY'] ?? '');

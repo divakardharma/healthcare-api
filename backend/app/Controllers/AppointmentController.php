@@ -67,19 +67,27 @@ class AppointmentController
     }
 
 
-    // GET /appointments
-    public function index(int $tenantId): void
-    {
+    // GET /appointments?page=N
+    // Returns one API batch (fixed at 20 appointments) + pagination info.
+    public function index(
+        int $tenantId,
+        int $page = 1,
+        int $limit = AppointmentService::BATCH_SIZE
+    ): void {
         try {
 
-            $appointments =
-                $this->appointmentService->getAllAppointments(
-                    $tenantId
+            $result =
+                $this->appointmentService->getAppointmentsPage(
+                    $page,
+                    $tenantId,
+                    $limit
                 );
 
             Response::success(
-                $appointments,
-                'Appointments fetched successfully'
+                $result['appointments'],
+                'Appointments fetched successfully',
+                200,
+                ['pagination' => $result['pagination']]
             );
 
         } catch (Exception $e) {
