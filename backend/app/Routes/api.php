@@ -98,17 +98,24 @@ function getSubdomainFromHost(): string
     $host = $_SERVER['HTTP_HOST'] ?? '';
 
     // Remove port number
-    // Example: gov.localhost:8080 -> gov.localhost
     $host = preg_replace('/:\d+$/', '', $host);
 
-    // Local environment
-    // Example: gov.localhost -> gov
-    if (preg_match('/^([a-z0-9-]+)\.localhost$/i', $host, $matches)) {
-        return strtolower($matches[1]);
+    // Local development:
+    // API is running on localhost, but tenant is in the frontend Origin.
+    if ($host === 'localhost' || $host === '127.0.0.1') {
+        $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+
+        $originHost = parse_url($origin, PHP_URL_HOST);
+
+        if (
+            $originHost &&
+            preg_match('/^([a-z0-9-]+)\.localhost$/i', $originHost, $matches)
+        ) {
+            return strtolower($matches[1]);
+        }
     }
 
-    // Production environment
-    // Example: gov.heal.com -> gov
+    // Production
     if (preg_match('/^([a-z0-9-]+)\.heal\.com$/i', $host, $matches)) {
         return strtolower($matches[1]);
     }
