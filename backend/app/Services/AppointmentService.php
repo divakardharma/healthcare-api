@@ -5,10 +5,20 @@ require_once __DIR__ . '/../Repositories/AppointmentRepository.php';
 
 class AppointmentService
 {
+    // Number of appointments returned per API request. The frontend shows 10
+    // per screen, so one batch covers two UI pages. Owned by the backend only.
+    public const BATCH_SIZE = 20;
+
+    // Safety cap so a huge ?page= value can never overflow the OFFSET.
+    private const MAX_PAGE = 1000000;
+
     private PDO $db;
+    private AppointmentRepository $appointmentRepository;
 
     public function __construct(AppointmentRepository $appointmentRepository)
     {
+        $this->appointmentRepository = $appointmentRepository;
+
         $reflection = new ReflectionClass($appointmentRepository);
         $property = $reflection->getProperty('db');
         $property->setAccessible(true);
@@ -238,6 +248,42 @@ class AppointmentService
 
     /*
     |--------------------------------------------------------------------------
+    | CHECK PATIENT APPOINTMENT CONFLICT
+    |--------------------------------------------------------------------------
+    */
+    private function hasPatientConflict(
+        int $patientId,
+        string $date,
+        string $time,
+        ?int $excludeId = null
+    ): bool {
+
+        $sql = "SELECT COUNT(*)
+                FROM appointments
+                WHERE patient_id = :patient_id
+                AND appointment_date = :appointment_date
+                AND appointment_time = :appointment_time
+                AND status = 'Scheduled'";
+
+        $params = [
+            ':patient_id'       => $patientId,
+            ':appointment_date' => $date,
+            ':appointment_time' => $time
+        ];
+
+        if ($excludeId !== null) {
+            $sql .= " AND id != :exclude_id";
+            $params[':exclude_id'] = $excludeId;
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn() > 0;
+    }
+
+    /*
+    |--------------------------------------------------------------------------
     | GET APPOINTMENTS BY DATE
     |--------------------------------------------------------------------------
     */
@@ -389,36 +435,50 @@ class AppointmentService
      */
     private const ALLOWED_STATUSES = ['Scheduled', 'Completed', 'Cancelled'];
 
-    public function createAppointment(array $data, int $tenantId): array
-    {
-        if (empty($data['patient_id'])) {
-            throw new Exception('Patient is required');
-        }
 
-        if (empty($data['appointment_date']) || !$this->isValidDate($data['appointment_date'])) {
-            throw new Exception('A valid appointment date (YYYY-MM-DD) is required');
-        }
-
-        if (empty($data['appointment_time']) || !$this->isValidTime($data['appointment_time'])) {
-            throw new Exception('A valid appointment time (HH:MM or HH:MM:SS) is required');
-        }
-
-        if (
-            !empty($data['provider_id']) &&
-            $this->hasConflict(
-                (int) $data['provider_id'],
-                $data['appointment_date'],
-                $data['appointment_time']
-            )
-        ) {
-            throw new Exception(
-                'This provider already has an appointment at the selected date and time'
-            );
-        }
-
-        $id = $this->create($data);
-        return $this->findById($id) ?: ['id' => $id];
+public function createAppointment(array $data, int $tenantId): array
+{
+    if (empty($data['patient_id'])) {
+        throw new Exception('Patient is required');
     }
+
+    if (empty($data['appointment_date']) || !$this->isValidDate($data['appointment_date'])) {
+        throw new Exception('A valid appointment date (YYYY-MM-DD) is required');
+    }
+
+    if (empty($data['appointment_time']) || !$this->isValidTime($data['appointment_time'])) {
+        throw new Exception('A valid appointment time (HH:MM or HH:MM:SS) is required');
+    }
+
+    if (
+        !empty($data['provider_id']) &&
+        $this->hasConflict(
+            (int) $data['provider_id'],
+            $data['appointment_date'],
+            $data['appointment_time']
+        )
+    ) {
+        throw new Exception(
+            'This provider already has an appointment at the selected date and time'
+        );
+    }
+
+    // NEW: Check whether this patient already has an appointment
+    if (
+        $this->hasPatientConflict(
+            (int) $data['patient_id'],
+            $data['appointment_date'],
+            $data['appointment_time']
+        )
+    ) {
+        throw new Exception(
+             'This patient already has an appointment at this date and time. Please select a different time.'
+        );
+    }
+
+    $id = $this->create($data);
+    return $this->findById($id) ?: ['id' => $id];
+}
 
     public function getAppointment(int $id, int $tenantId): array|false
     {
@@ -428,6 +488,38 @@ class AppointmentService
     public function getAllAppointments(int $tenantId): array
     {
         return $this->findAll();
+    }
+
+    /**
+     * One API batch (16 appointments) plus pagination metadata.
+     * The batch size is fixed here; a client-supplied limit is ignored.
+     */
+    public function getAppointmentsPage(
+        int $page,
+        int $tenantId,
+        int $limit = self::BATCH_SIZE
+    ): array {
+
+        $page   = min(max(1, $page), self::MAX_PAGE);
+        $limit  = self::BATCH_SIZE;
+        $offset = ($page - 1) * $limit;
+
+        $appointments = $this->appointmentRepository->findPaginated(
+            $limit,
+            $offset
+        );
+
+        $total = $this->appointmentRepository->countAll();
+
+        return [
+            'appointments' => $appointments,
+            'pagination'   => [
+                'page'     => $page,
+                'limit'    => $limit,
+                'total'    => $total,
+                'has_more' => ($page * $limit) < $total,
+            ],
+        ];
     }
 
     public function updateAppointment(int $id, int $tenantId, array $data): array|false

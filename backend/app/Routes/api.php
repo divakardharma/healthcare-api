@@ -432,7 +432,15 @@ if ($method === 'GET' && preg_match('#/patients/?$#', $path)) {
         $tenantPdo
     );
 
-    $patientController->index($tenantId);
+    // ?page=N (defaults to 1). The batch size is fixed server-side, so a
+    // client-supplied limit is intentionally not read.
+    $page = filter_var(
+        $_GET['page'] ?? 1,
+        FILTER_VALIDATE_INT,
+        ['options' => ['default' => 1, 'min_range' => 1]]
+    );
+
+    $patientController->index($tenantId, $page);
     exit;
 }
 
@@ -505,7 +513,15 @@ if ($method === 'GET' && preg_match('#/appointments/?$#', $path)) {
         $tenantPdo
     );
 
-    $appointmentController->index($tenantId);
+    // ?page=N (defaults to 1). The batch size is fixed server-side (20), so a
+    // client-supplied limit is intentionally not read.
+    $page = filter_var(
+        $_GET['page'] ?? 1,
+        FILTER_VALIDATE_INT,
+        ['options' => ['default' => 1, 'min_range' => 1]]
+    );
+
+    $appointmentController->index($tenantId, $page);
     exit;
 }
 

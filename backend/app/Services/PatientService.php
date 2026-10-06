@@ -5,6 +5,13 @@ require_once __DIR__ . '/../Security/AES.php';
 
 class PatientService
 {
+    // Number of patients returned per API request. The frontend shows 8 per
+    // screen, so one batch covers two UI pages. Owned by the backend only.
+    public const BATCH_SIZE = 16;
+
+    // Safety cap so a huge ?page= value can never overflow the OFFSET.
+    private const MAX_PAGE = 1000000;
+
     private PatientRepository $patientRepository;
     private string $aesKey;
 
@@ -14,94 +21,163 @@ class PatientService
         $this->aesKey = $_ENV['AES_KEY'] ?? '';
     }
 
-    public function createPatient(array $data, int $tenantId): array
-    {
-        if (empty($data['patient_name'])) {
-            throw new Exception('Patient name is required');
-        }
-
-        if (empty($data['mobile'])) {
-            throw new Exception('Mobile number is required');
-        }
-
-        if (
-            !empty($data['email']) &&
-            !filter_var($data['email'], FILTER_VALIDATE_EMAIL)
-        ) {
-            throw new Exception('Invalid email format');
-        }
-
-        $payload = [
-            'user_id'       => $data['user_id'] ?? null,
-            'patient_name'  => $data['patient_name'],
-            'email'         => $data['email'] ?? null,
-            'mobile'        => $data['mobile'],
-            'date_of_birth' => $data['date_of_birth'] ?? null,
-            'gender'        => $data['gender'] ?? null,
-            'address'       => $data['address'] ?? null,
-            'medical_data'  => $this->encryptMedicalData(
-                $data['medical_data'] ?? null
-            )
-        ];
-
-        $id = $this->patientRepository->create($payload);
-
-        return $this->getPatient($id, $tenantId);
+   public function createPatient(array $data, int $tenantId): array
+{
+    if (empty($data['patient_name'])) {
+        throw new Exception('Patient name is required');
     }
 
-    public function updatePatient(
-        int $id,
-        int $tenantId,
-        array $data
-    ): array {
+    $mobile = preg_replace('/\D/', '', trim($data['mobile'] ?? ''));
 
-        $existing = $this->patientRepository->findById($id);
+    if ($mobile === '') {
+        throw new Exception('Mobile number is required');
+    }
 
-        if (!$existing) {
-            throw new Exception('Patient not found');
-        }
+    if (!preg_match('/^[6-9][0-9]{9}$/', $mobile)) {
+        throw new Exception(
+            'Mobile number must be a valid 10-digit Indian mobile number'
+        );
+    }
 
-        $allowed = [
-            'patient_name',
-            'email',
-            'mobile',
-            'date_of_birth',
-            'gender',
-            'address',
-            'medical_data'
-        ];
+    $data['mobile'] = $mobile;
 
-        $updates = [];
+    if (
+        !empty($data['email']) &&
+        !filter_var($data['email'], FILTER_VALIDATE_EMAIL)
+    ) {
+        throw new Exception('Invalid email format');
+    }
 
-        foreach ($allowed as $field) {
+    if (!empty($data['date_of_birth'])) {
 
-            if (array_key_exists($field, $data)) {
-
-                $updates[$field] = $field === 'medical_data'
-                    ? $this->encryptMedicalData($data[$field])
-                    : $data[$field];
-            }
-        }
+        $date = DateTime::createFromFormat(
+            'Y-m-d',
+            $data['date_of_birth']
+        );
 
         if (
-            !empty($updates['email']) &&
-            !filter_var(
-                $updates['email'],
-                FILTER_VALIDATE_EMAIL
-            )
+            !$date ||
+            $date->format('Y-m-d') !== $data['date_of_birth']
         ) {
-            throw new Exception('Invalid email format');
+            throw new Exception('Invalid date of birth');
         }
 
-        if (!empty($updates)) {
-            $this->patientRepository->update(
-                $id,
-                $updates
+        if ($date > new DateTime()) {
+            throw new Exception(
+                'Date of birth cannot be in the future'
+            );
+        }
+    }
+
+    $payload = [
+        'user_id'       => $data['user_id'] ?? null,
+        'patient_name'  => $data['patient_name'],
+        'email'         => $data['email'] ?? null,
+        'mobile'        => $data['mobile'],
+        'date_of_birth' => $data['date_of_birth'] ?? null,
+        'gender'        => $data['gender'] ?? null,
+        'address'       => $data['address'] ?? null,
+        'medical_data'  => $this->encryptMedicalData(
+            $data['medical_data'] ?? null
+        )
+    ];
+
+    $id = $this->patientRepository->create($payload);
+
+    return $this->getPatient($id, $tenantId);
+}
+
+  public function updatePatient(
+    int $id,
+    int $tenantId,
+    array $data
+): array {
+
+    $existing = $this->patientRepository->findById($id);
+
+    if (!$existing) {
+        throw new Exception('Patient not found');
+    }
+
+    $allowed = [
+        'patient_name',
+        'email',
+        'mobile',
+        'date_of_birth',
+        'gender',
+        'address',
+        'medical_data'
+    ];
+
+    $updates = [];
+
+    foreach ($allowed as $field) {
+
+        if (array_key_exists($field, $data)) {
+
+            $updates[$field] = $field === 'medical_data'
+                ? $this->encryptMedicalData($data[$field])
+                : $data[$field];
+        }
+    }
+
+    if (
+        !empty($updates['email']) &&
+        !filter_var(
+            $updates['email'],
+            FILTER_VALIDATE_EMAIL
+        )
+    ) {
+        throw new Exception('Invalid email format');
+    }
+
+    if (isset($updates['mobile'])) {
+
+        $mobile = preg_replace(
+            '/\D/',
+            '',
+            trim($updates['mobile'])
+        );
+
+        if (!preg_match('/^[6-9][0-9]{9}$/', $mobile)) {
+            throw new Exception(
+                'Mobile number must be a valid 10-digit Indian mobile number'
             );
         }
 
-        return $this->getPatient($id, $tenantId);
+        $updates['mobile'] = $mobile;
     }
+
+    if (!empty($updates['date_of_birth'])) {
+
+        $date = DateTime::createFromFormat(
+            'Y-m-d',
+            $updates['date_of_birth']
+        );
+
+        if (
+            !$date ||
+            $date->format('Y-m-d') !== $updates['date_of_birth']
+        ) {
+            throw new Exception('Invalid date of birth');
+        }
+
+        if ($date > new DateTime()) {
+            throw new Exception(
+                'Date of birth cannot be in the future'
+            );
+        }
+    }
+
+    if (!empty($updates)) {
+        $this->patientRepository->update(
+            $id,
+            $updates
+        );
+    }
+
+    return $this->getPatient($id, $tenantId);
+}
 
     public function deletePatient(
         int $id,
@@ -172,6 +248,43 @@ class PatientService
 
         return $patients;
     }
+    public function getPatientsPage(
+        int $page,
+        int $tenantId
+    ): array {
+
+        $page   = min(max(1, $page), self::MAX_PAGE);
+        $limit  = self::BATCH_SIZE;
+        $offset = ($page - 1) * $limit;
+
+        $patients = $this->patientRepository->findPaginated(
+            $limit,
+            $offset
+        );
+
+        foreach ($patients as &$patient) {
+
+            $patient['medical_data'] =
+                $this->decryptMedicalData(
+                    $patient['medical_data']
+                );
+        }
+
+        unset($patient);
+
+        $total = $this->patientRepository->countActive();
+
+        return [
+            'patients'   => $patients,
+            'pagination' => [
+                'page'     => $page,
+                'limit'    => $limit,
+                'total'    => $total,
+                'has_more' => ($page * $limit) < $total,
+            ],
+        ];
+    }
+
 private function encryptMedicalData(
     ?string $data
 ): ?string {

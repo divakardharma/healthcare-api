@@ -34,23 +34,26 @@ class PatientController
         }
     }
 
-    // GET /patients
-public function index(int $tenantId): void
-{
-    try {
-        $patients = $this->patientService->getAllPatients($tenantId);
+    // GET /patients?page=N  (16 patients per page/batch, fixed by the service)
+    public function index(int $tenantId, int $page = 1): void
+    {
+        try {
+            $result = $this->patientService->getPatientsPage($page, $tenantId);
 
-        Response::success(
-            $patients,
-            'Patients fetched successfully'
-        );
-    } catch (Exception $e) {
-        Response::error(
-            $e->getMessage(),
-            422
-        );
+            Response::success(
+                $result['patients'],
+                'Patients fetched successfully',
+                200,
+                ['pagination' => $result['pagination']]
+            );
+        } catch (Exception $e) {
+            Response::error(
+                $e->getMessage(),
+                422
+            );
+        }
     }
-}
+
     // PUT /patients/{id}  (Provider, Nurse, Admin)
     public function update(int $id, array $data, int $tenantId): void
     {

@@ -193,6 +193,59 @@ class AppointmentRepository
 
     /*
     |--------------------------------------------------------------------------
+    | FIND APPOINTMENTS (PAGINATED)
+    |--------------------------------------------------------------------------
+    | Same SELECT / JOINs / ordering as findAll(), limited to one API batch.
+    | `a.id DESC` is only a final tie-breaker so two appointments with the
+    | same date and time can never swap places (or repeat / disappear)
+    | between two page requests.
+    |--------------------------------------------------------------------------
+    */
+    public function findPaginated(int $limit, int $offset): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT
+                a.*,
+                p.patient_name,
+                u.name AS provider_name
+             FROM appointments a
+             LEFT JOIN patients p
+                ON p.id = a.patient_id
+             LEFT JOIN users u
+                ON u.id = a.provider_id
+             ORDER BY
+                a.appointment_date DESC,
+                a.appointment_time DESC,
+                a.id DESC
+             LIMIT :limit OFFSET :offset"
+        );
+
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return array_map(
+            [$this, 'decryptRow'],
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        );
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | COUNT ALL APPOINTMENTS
+    |--------------------------------------------------------------------------
+    */
+    public function countAll(): int
+    {
+        $stmt = $this->db->query("SELECT COUNT(*) FROM appointments");
+
+        return (int) $stmt->fetchColumn();
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
     | CHECK APPOINTMENT CONFLICT
     |--------------------------------------------------------------------------
     */

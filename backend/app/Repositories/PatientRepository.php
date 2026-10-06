@@ -118,6 +118,43 @@ class PatientRepository
         );
     }
 
+    /*
+    |--------------------------------------------------------------------------
+    | PAGINATED LIST
+    |--------------------------------------------------------------------------
+    | Same filter and ordering as findAll(), but only one batch is read from
+    | the database. Rows are decrypted exactly as in findAll().
+    |--------------------------------------------------------------------------
+    */
+    public function findPaginated(int $limit, int $offset): array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT * FROM patients
+             WHERE deleted_at IS NULL
+             ORDER BY id DESC
+             LIMIT :limit OFFSET :offset"
+        );
+
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+
+        return array_map(
+            [$this, 'decryptRow'],
+            $stmt->fetchAll(PDO::FETCH_ASSOC)
+        );
+    }
+
+    public function countActive(): int
+    {
+        $stmt = $this->db->query(
+            "SELECT COUNT(*) FROM patients
+             WHERE deleted_at IS NULL"
+        );
+
+        return (int) $stmt->fetchColumn();
+    }
+
     public function findByUserId(int $userId)
     {
         $stmt = $this->db->prepare(
