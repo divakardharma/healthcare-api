@@ -9,6 +9,7 @@ require_once __DIR__ . '/../Controllers/TenantController.php';
 require_once __DIR__ . '/../Controllers/PrescriptionController.php';
 require_once __DIR__ . '/../Controllers/DashboardController.php';
 require_once __DIR__ . '/../Controllers/NoteController.php';
+require_once __DIR__ . '/../Controllers/ChatController.php';
 require_once __DIR__ . '/../Controllers/BillingController.php';
 require_once __DIR__ . '/../Controllers/StaffController.php';
 
@@ -1011,6 +1012,81 @@ if ($method === 'DELETE' && preg_match('#^/notes/(\d+)/?$#', $path, $matches)) {
         Response::error($e->getMessage(), 404);
     }
 
+    exit;
+}
+
+/*------------------------------------------------ STAFF CHAT ROUTES --------------------------------------------------- */
+
+// POST /chat/send
+if ($method === 'POST' && preg_match('#^/chat/send/?$#', $path)) {
+    try {
+        $data = getEncryptedData();
+        $controller = new ChatController($tenantPdo);
+        $result = $controller->send($data, $userId);
+
+        Response::success(
+            $result,
+            $result['message'],
+            201
+        );
+    } catch (Exception $e) {
+        Response::error($e->getMessage(), 400);
+    }
+    exit;
+}
+
+// GET /chat/users
+if ($method === 'GET' && preg_match('#^/chat/users/?$#', $path)) {
+    try {
+        $controller = new ChatController($tenantPdo);
+        $result = $controller->users($userId);
+
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error($e->getMessage(), 400);
+    }
+    exit;
+}
+
+// GET /chat/{userId}
+if ($method === 'GET' && preg_match('#^/chat/(\d+)/?$#', $path, $matches)) {
+    try {
+        $controller = new ChatController($tenantPdo);
+        $result = $controller->conversation(
+            $userId,
+            (int) $matches[1]
+        );
+
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error($e->getMessage(), 400);
+    }
+    exit;
+}
+
+// POST /chat/delete
+if ($method === 'POST' && preg_match('#^/chat/delete/?$#', $path)) {
+    try {
+        $data = getEncryptedData();
+        $controller = new ChatController($tenantPdo);
+        $result = $controller->delete($data, $userId);
+
+        Response::success(
+            $result,
+            $result['message'],
+            200
+        );
+    } catch (Exception $e) {
+        Response::error($e->getMessage(), 400);
+    }
     exit;
 }
 

@@ -293,3 +293,34 @@ CREATE TABLE appointment_notes (
         REFERENCES users(id)
         ON DELETE CASCADE
 );
+
+-- ============================================
+-- 14. STAFF CHAT MESSAGES (user-to-user)
+-- ============================================
+
+CREATE TABLE chat_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+
+    sender_user_id INT NOT NULL,
+    receiver_user_id INT NOT NULL,
+
+    message TEXT NOT NULL,
+
+    -- Soft delete columns
+    deleted_for_sender TINYINT(1) NOT NULL DEFAULT 0,
+    deleted_for_receiver TINYINT(1) NOT NULL DEFAULT 0,
+    is_deleted_for_everyone TINYINT(1) NOT NULL DEFAULT 0,
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (sender_user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    FOREIGN KEY (receiver_user_id)
+        REFERENCES users(id)
+        ON DELETE CASCADE,
+
+    INDEX idx_chat_pair (sender_user_id, receiver_user_id),
+    INDEX idx_chat_created (created_at)
+);
