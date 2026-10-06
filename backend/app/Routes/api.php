@@ -428,7 +428,7 @@ if ($method === 'GET' && preg_match('#/users/(\d+)/?$#', $path, $matches)) {
 if ($method === 'GET' && preg_match('#/patients/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
-        [ 'Provider', 'Nurse'],
+      ['Admin', 'Provider', 'Nurse'],
         $tenantPdo
     );
 
@@ -504,12 +504,56 @@ if ($method === 'DELETE' && preg_match('#/patients/(\d+)/?$#', $path, $matches))
     exit;
 }
 
+/*------------------------------------------------ NOTIFICATION ROUTES ------------------------------------------------*/
+
+if ($method === 'GET' && preg_match('#^/notifications/?$#', $path)) {
+    RoleMiddleware::handle(
+        $payload,
+        ['Provider'],
+        $tenantPdo
+    );
+
+    try {
+        $stmt = $tenantPdo->prepare("
+            SELECT
+                id AS appointment_id,
+                patient_id,
+                provider_id,
+                appointment_date,
+                appointment_time,
+                status
+            FROM appointments
+            WHERE provider_id = ?
+              AND status = 'Scheduled'
+              AND TIMESTAMP(appointment_date, appointment_time) > NOW()
+            ORDER BY appointment_date ASC, appointment_time ASC
+        ");
+
+        $stmt->execute([$userId]);
+
+        $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        Response::success(
+            $notifications,
+            'Notifications fetched successfully',
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+
+    exit;
+}
+
 /*-------------------------------------------------- APPOINTMENT MANAGEMEN----------------------------------------------------T */
 
 if ($method === 'GET' && preg_match('#/appointments/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
-        ['Provider', 'Nurse'],
+        ['Admin', 'Provider', 'Nurse'],
         $tenantPdo
     );
 
