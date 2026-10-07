@@ -87,12 +87,6 @@ function getEncryptedData(): array
     return $data;
 }
 
-
-
-
-
-
-
 function getSubdomainFromHost(): string
 {
     $host = $_SERVER['HTTP_HOST'] ?? '';
