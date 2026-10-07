@@ -729,13 +729,52 @@ if (
     exit;
 }
 
+/*------------------------------------------------- MEDICINE ROUTES-----------------------------------------------------*/
+
+// GET /medicines fetch all medicines
+if ($method === 'GET' && preg_match('#/medicines/?$#', $path)) {
+    RoleMiddleware::handle(
+        $payload,
+        ['Provider', 'Pharmacist'],
+        $tenantPdo
+    );
+
+    try {
+        $stmt = $tenantPdo->prepare("
+            SELECT
+                id,
+                name,
+                description,
+                stock_quantity
+            FROM medicines
+            ORDER BY name ASC
+        ");
+
+        $stmt->execute();
+
+        $medicines = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        Response::success(
+            $medicines,
+            'Medicines fetched successfully',
+            200
+        );
+    } catch (Exception $e) {
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+    exit;
+}
+
 /*------------------------------------------------- PRESCRIPTION ROUTES----------------------------------------------------- */
 
 // POST /prescriptions create a new prescription
 if ($method === 'POST' && preg_match('#/prescriptions/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin', 'Provider'],
+        ['Provider'],
         $tenantPdo
     );
 
@@ -762,7 +801,7 @@ if ($method === 'POST' && preg_match('#/prescriptions/?$#', $path)) {
 if ($method === 'GET' && preg_match('#/prescriptions/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin', 'Provider', 'Pharmacist'],
+        ['Provider', 'Pharmacist'],
         $tenantPdo
     );
 
@@ -786,7 +825,7 @@ if ($method === 'GET' && preg_match('#/prescriptions/?$#', $path)) {
 if ($method === 'GET' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin', 'Provider', 'Pharmacist'],
+        ['Provider', 'Pharmacist'],
         $tenantPdo
     );
 
@@ -811,7 +850,7 @@ if ($method === 'PUT' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches
 
     RoleMiddleware::handle(
         $payload,
-        [ 'Admin','Provider'],
+        ['Provider'],
         $tenantPdo
     );
 
@@ -842,7 +881,7 @@ if ($method === 'PUT' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches
 if ($method === 'DELETE' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin','Provider'],
+        ['Provider'],
         $tenantPdo
     );
 
@@ -870,7 +909,7 @@ if ($method === 'PATCH' && preg_match(
 )) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin','Pharmacist'],
+        ['Pharmacist'],
         $tenantPdo
     );
 
