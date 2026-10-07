@@ -31,6 +31,18 @@ class CsrfMiddleware
             Response::error('CSRF token required', 403);
         }
 
+error_log(
+    '[CSRF DEBUG] ' . json_encode([
+        'path'        => $_SERVER['REQUEST_URI'] ?? '',
+        'session_id'  => session_id(),
+        'cookie_sent' => isset($_COOKIE[session_name()]),
+        'header_token'=> substr($token, 0, 8),
+        'stored_token'=> substr($_SESSION['csrf_token'] ?? 'NONE', 0, 8),
+    ]) . PHP_EOL,
+    3,
+    __DIR__ . '/../../storage/logs/csrf.log'
+);
+
         $storedToken = $_SESSION['csrf_token'] ?? null;
 
         if (

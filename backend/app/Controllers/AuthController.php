@@ -101,9 +101,9 @@ class AuthController
                         setcookie('refresh_token', $result['refresh_token'], [
                 'expires'  => time() + (int)($_ENV['JWT_REFRESH_EXPIRY'] ?? 604800),
                 'path'     => '/',
-                'secure'   => (bool)($_ENV['COOKIE_SECURE'] ?? true),
+                'secure'   => filter_var($_ENV['COOKIE_SECURE'] ?? false, FILTER_VALIDATE_BOOLEAN), 
                 'httponly' => true,
-                'samesite' => 'Strict'
+                 'samesite' => 'Lax'
             ]);
 
             unset($result['refresh_token']);
@@ -199,7 +199,7 @@ class AuthController
                 'path'     => '/',
                 'secure'   => (bool)($_ENV['COOKIE_SECURE'] ?? true),
                 'httponly' => true,
-                'samesite' => 'Strict'
+                'samesite' => 'Lax',
             ]);
 
             Response::success(
@@ -266,9 +266,9 @@ public function refresh(
         setcookie('refresh_token', $tokens['refresh_token'], [
             'expires'  => time() + (int)($_ENV['JWT_REFRESH_EXPIRY'] ?? 604800),
             'path'     => '/',
-            'secure'   => (bool)($_ENV['COOKIE_SECURE'] ?? true),
+            'secure'   => filter_var($_ENV['COOKIE_SECURE'] ?? false, FILTER_VALIDATE_BOOLEAN),
             'httponly' => true,
-            'samesite' => 'Strict'
+            'samesite' => 'Lax'
         ]);
 
         /*

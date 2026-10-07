@@ -98,24 +98,17 @@ function getSubdomainFromHost(): string
     $host = $_SERVER['HTTP_HOST'] ?? '';
 
     // Remove port number
+    // Example: gov.localhost:8080 -> gov.localhost
     $host = preg_replace('/:\d+$/', '', $host);
 
-    // Local development:
-    // API is running on localhost, but tenant is in the frontend Origin.
-    if ($host === 'localhost' || $host === '127.0.0.1') {
-        $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-        $originHost = parse_url($origin, PHP_URL_HOST);
-
-        if (
-            $originHost &&
-            preg_match('/^([a-z0-9-]+)\.localhost$/i', $originHost, $matches)
-        ) {
-            return strtolower($matches[1]);
-        }
+    // Local environment
+    // Example: gov.localhost -> gov
+    if (preg_match('/^([a-z0-9-]+)\.localhost$/i', $host, $matches)) {
+        return strtolower($matches[1]);
     }
 
-    // Production
+    // Production environment
+    // Example: gov.heal.com -> gov
     if (preg_match('/^([a-z0-9-]+)\.heal\.com$/i', $host, $matches)) {
         return strtolower($matches[1]);
     }
@@ -124,33 +117,29 @@ function getSubdomainFromHost(): string
 }
 
 // ---------------------------------------------------GET /csrf-token---------------------------------------------
-
 if ($method === 'GET' && str_contains($path, '/csrf-token')) {
-    $token = CSRF::generate();
-    $_SESSION['csrf_token'] = $token;
 
- Response::success( ['csrf_token' => $token], 'CSRF token generated');
+
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = CSRF::generate();
+    }
+
+    Response::success(
+        ['csrf_token' => $_SESSION['csrf_token']],
+        'CSRF token generated'
+    );
     exit;
 }
 
-/* -------------------------------------------------Public routes --------------------------------------------------------------*/
 
+/* -------------------------------------------------Public routes --------------------------------------------------------------*/
 $isPublicRoute =
     str_contains($path, '/tenant/register') ||
-    // str_contains($path, '/register') ||
     str_contains($path, '/login') ||
-    str_contains($path, '/refresh') ;
+    str_contains($path, '/refresh');
 
-/* CSRF */
 
-// if (
-//     !$isPublicRoute ||
-//     str_contains($path, '/login') ||
-//     str_contains($path, '/tenant/register') ||
-//     str_contains($path, '/refresh') 
-// ) {
-    CsrfMiddleware::handle();
-// }
+CsrfMiddleware::handle();
 
 //------------------------------------------------------ POST /tenant/register---------------------------------------------------
 
@@ -434,11 +423,7 @@ if ($method === 'GET' && preg_match('#/users/(\d+)/?$#', $path, $matches)) {
 /*------------------------------------------------ PATIENT MANAGEMENT------------------------------------------------------ */
 
 if ($method === 'GET' && preg_match('#/patients/?$#', $path)) {
-    RoleMiddleware::handle(
-        $payload,
-      ['Admin', 'Provider', 'Nurse'],
-        $tenantPdo
-    );
+RoleMiddleware::handle($payload, ['Admin', 'Provider', 'Nurse'], $tenantPdo);
 
     // ?page=N (defaults to 1). The batch size is fixed server-side, so a
     // client-supplied limit is intentionally not read.
@@ -512,6 +497,7 @@ if ($method === 'DELETE' && preg_match('#/patients/(\d+)/?$#', $path, $matches))
     exit;
 }
 
+
 /*------------------------------------------------ NOTIFICATION ROUTES ------------------------------------------------*/
 
 if ($method === 'GET' && preg_match('#^/notifications/?$#', $path)) {
@@ -539,29 +525,23 @@ if ($method === 'GET' && preg_match('#^/notifications/?$#', $path)) {
 
         $stmt->execute([$userId]);
 
-        $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
         Response::success(
-            $notifications,
+            $stmt->fetchAll(PDO::FETCH_ASSOC),
             'Notifications fetched successfully',
             200
         );
     } catch (Exception $e) {
-        Response::error(
-            $e->getMessage(),
-            400
-        );
+        Response::error($e->getMessage(), 400);
     }
 
     exit;
 }
-
 /*-------------------------------------------------- APPOINTMENT MANAGEMEN----------------------------------------------------T */
 
 if ($method === 'GET' && preg_match('#/appointments/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin', 'Provider', 'Nurse'],
+        ['Provider', 'Nurse','Admin'],
         $tenantPdo
     );
 
@@ -742,7 +722,7 @@ if (
 if ($method === 'POST' && preg_match('#/prescriptions/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin', 'Provider'],
+        ['Provider'],
         $tenantPdo
     );
 
@@ -769,7 +749,7 @@ if ($method === 'POST' && preg_match('#/prescriptions/?$#', $path)) {
 if ($method === 'GET' && preg_match('#/prescriptions/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin', 'Provider', 'Pharmacist'],
+        ['Provider', 'Pharmacist'],
         $tenantPdo
     );
 
@@ -793,7 +773,7 @@ if ($method === 'GET' && preg_match('#/prescriptions/?$#', $path)) {
 if ($method === 'GET' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin', 'Provider', 'Pharmacist'],
+        ['Provider', 'Pharmacist'],
         $tenantPdo
     );
 
@@ -818,7 +798,7 @@ if ($method === 'PUT' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches
 
     RoleMiddleware::handle(
         $payload,
-        [ 'Admin','Provider'],
+        [ 'Provider'],
         $tenantPdo
     );
 
@@ -849,7 +829,7 @@ if ($method === 'PUT' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches
 if ($method === 'DELETE' && preg_match('#/prescriptions/(\d+)/?$#', $path, $matches)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin','Provider'],
+        ['Provider'],
         $tenantPdo
     );
 
@@ -877,7 +857,7 @@ if ($method === 'PATCH' && preg_match(
 )) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin','Pharmacist'],
+        ['Pharmacist'],
         $tenantPdo
     );
 

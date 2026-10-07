@@ -119,16 +119,19 @@ class BillingRepository
     // ========================================
     // Payment Summary
     // ========================================
-    public function getPaymentSummary(): array
-    {
-        $stmt = $this->pdo->prepare(
-            "SELECT
-                COUNT(*) AS total,
-                SUM(payment_status = 'Pending') AS pending,
-                SUM(payment_status = 'Paid') AS paid
-            FROM billing"
-        );
-        $stmt->execute();
-        return $stmt->fetch();
-    }
+public function getPaymentSummary(): array
+{
+    $stmt = $this->pdo->prepare(
+        "SELECT
+            COUNT(*) AS total_invoices,
+            COALESCE(SUM(amount), 0) AS total_amount,
+            COALESCE(SUM(CASE WHEN payment_status = 'Paid' THEN amount ELSE 0 END), 0) AS paid_amount,
+            COALESCE(SUM(CASE WHEN payment_status = 'Pending' THEN amount ELSE 0 END), 0) AS pending_amount
+        FROM billing"
+    );
+
+    $stmt->execute();
+
+    return $stmt->fetch();
+}
 }

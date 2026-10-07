@@ -129,13 +129,15 @@ class BillingService
     // ========================================
     // Get Payment Summary
     // ========================================
-    public function getPaymentSummary(): array
-    {
-        $summary = $this->billingRepository->getPaymentSummary();
-        return [
-            'total' => (int)($summary['total'] ?? 0),
-            'pending' => (int)($summary['pending'] ?? 0),
-            'paid' => (int)($summary['paid'] ?? 0)
-        ];
-    }
+public function getPaymentSummary(): array
+{
+    $summary = $this->billingRepository->getPaymentSummary();
+
+    return [
+        'total_invoices' => (int)($summary['total_invoices'] ?? 0),
+        'total_amount' => (float)($summary['total_amount'] ?? 0),
+        'paid_amount' => (float)($summary['paid_amount'] ?? 0),
+        'pending_amount' => (float)($summary['pending_amount'] ?? 0)
+    ];
+}
 }
