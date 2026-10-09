@@ -154,7 +154,7 @@ if ($method === 'POST' && preg_match('#^/tenant/register/?$#', $path)) {
     exit;
 }
 
-
+//-----------------------------------------------------  GET  /tenant/config ---------------------------------------------------
 if ($method === 'GET' && preg_match('#^/tenant/config/?$#', $path)) {
 
     $subdomain = getSubdomainFromHost();

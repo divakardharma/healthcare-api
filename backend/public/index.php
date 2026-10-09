@@ -17,7 +17,7 @@ header("Access-Control-Allow-Credentials: true");
 header("Access-Control-Allow-Headers: Content-Type, Authorization, X-CSRF-Token");
 header("Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS");
 
-// Handle browser preflight request
+
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(204);
     exit;
@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Start PHP session
 if (session_status() === PHP_SESSION_NONE) {
 
-    // "false" string-ah correct-ah boolean-ah maatha (bool)"false" === true bug-ah avoid panna
+
     $cookieSecure = filter_var(
         $_ENV['COOKIE_SECURE'] ?? false,
         FILTER_VALIDATE_BOOLEAN
