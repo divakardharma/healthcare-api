@@ -31,10 +31,13 @@ class BillingService
     // ========================================
     // Get All Invoices
     // ========================================
-    public function getAllInvoices(): array
-    {
-        return $this->billingRepository->getAll();
-    }
+public function getAllInvoices(): array
+{
+    return array_map(
+        [$this, 'decryptInvoice'],
+        $this->billingRepository->getAll()
+    );
+}
     // ========================================
     // Get Invoice By ID
     // ========================================
@@ -140,4 +143,13 @@ public function getPaymentSummary(): array
         'pending_amount' => (float)($summary['pending_amount'] ?? 0)
     ];
 }
+private function decryptInvoice(array $invoice): array
+{
+    if (!empty($invoice['patient_name'])) {
+        $invoice['patient_name'] = AES::decryptField($invoice['patient_name']);
+    }
+    return $invoice;
+}
+
+
 }
