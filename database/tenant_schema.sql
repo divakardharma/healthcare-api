@@ -75,7 +75,7 @@ CREATE TABLE refresh_tokens (
         ON DELETE CASCADE
 );
 
-
+CREATE INDEX idx_refresh_token_hash ON refresh_tokens (token_hash);
 
 -- ============================================
 -- 5. PATIENTS
@@ -137,6 +137,8 @@ CREATE TABLE appointments (
         ON DELETE SET NULL
 );
 
+CREATE INDEX idx_appt_provider_slot ON appointments (provider_id, appointment_date, appointment_time, status);
+CREATE INDEX idx_appt_date_time ON appointments (appointment_date, appointment_time);
 
 -- ============================================
 -- 7. MEDICINES
@@ -244,6 +246,7 @@ CREATE TABLE billing (
         ON DELETE SET NULL
 );
 
+CREATE INDEX idx_billing_status_amount ON billing (payment_status, amount);
 
 -- ============================================
 -- 11. STAFF

@@ -31,10 +31,13 @@ class BillingService
     // ========================================
     // Get All Invoices
     // ========================================
-    public function getAllInvoices(): array
-    {
-        return $this->billingRepository->getAll();
-    }
+public function getAllInvoices(): array
+{
+    return array_map(
+        [$this, 'decryptInvoice'],
+        $this->billingRepository->getAll()
+    );
+}
     // ========================================
     // Get Invoice By ID
     // ========================================
@@ -127,15 +130,59 @@ class BillingService
         );
     }
     // ========================================
+    // Invoice form dropdown options
+    // ========================================
+    public function getPatientOptions(): array
+    {
+        return array_map(
+            fn (array $patient) => [
+                'id' => (int) $patient['id'],
+                'patient_name' => AES::decryptField($patient['patient_name'])
+            ],
+            $this->billingRepository->getPatientOptions()
+        );
+    }
+
+    public function getAppointmentOptions(int $patientId): array
+    {
+        if ($patientId <= 0) {
+            throw new Exception('Valid patient ID is required');
+        }
+
+        return array_map(
+            function (array $appointment) {
+                if (!empty($appointment['provider_name'])) {
+                    $appointment['provider_name'] =
+                        AES::decryptField($appointment['provider_name']);
+                }
+
+                return $appointment;
+            },
+            $this->billingRepository->getAppointmentOptions($patientId)
+        );
+    }
+
+    // ========================================
     // Get Payment Summary
     // ========================================
-    public function getPaymentSummary(): array
-    {
-        $summary = $this->billingRepository->getPaymentSummary();
-        return [
-            'total' => (int)($summary['total'] ?? 0),
-            'pending' => (int)($summary['pending'] ?? 0),
-            'paid' => (int)($summary['paid'] ?? 0)
-        ];
+public function getPaymentSummary(): array
+{
+    $summary = $this->billingRepository->getPaymentSummary();
+
+    return [
+        'total_invoices' => (int)($summary['total_invoices'] ?? 0),
+        'total_amount' => (float)($summary['total_amount'] ?? 0),
+        'paid_amount' => (float)($summary['paid_amount'] ?? 0),
+        'pending_amount' => (float)($summary['pending_amount'] ?? 0)
+    ];
+}
+private function decryptInvoice(array $invoice): array
+{
+    if (!empty($invoice['patient_name'])) {
+        $invoice['patient_name'] = AES::decryptField($invoice['patient_name']);
     }
+    return $invoice;
+}
+
+
 }

@@ -1,54 +1,92 @@
+
 <?php
+
+require_once __DIR__ . '/../Security/AES.php';
+
 class DashboardRepository
 {
     private PDO $pdo;
+
     public function __construct(PDO $pdo)
     {
         $this->pdo = $pdo;
     }
+
     public function getTotalPatients(): int
     {
-        $stmt = $this->pdo->prepare(
-            "SELECT COUNT(*) AS total FROM patients"
+        $stmt = $this->pdo->query(
+            "SELECT COUNT(*) FROM patients"
         );
-        $stmt->execute();
-        return (int)$stmt->fetch()['total'];
+
+        return (int) $stmt->fetchColumn();
     }
+
     public function getAppointmentStatistics(): array
     {
-        $stmt = $this->pdo->prepare(
+        $stmt = $this->pdo->query(
             "SELECT
                 COUNT(*) AS total,
-                SUM(CASE WHEN status = 'Scheduled' THEN 1 ELSE 0 END) AS scheduled,
-                SUM(CASE WHEN status = 'Completed' THEN 1 ELSE 0 END) AS completed,
-                SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled
-            FROM appointments"
+                COALESCE(SUM(status = 'Scheduled'), 0) AS scheduled,
+                COALESCE(SUM(status = 'Completed'), 0) AS completed,
+                COALESCE(SUM(status = 'Cancelled'), 0) AS cancelled
+             FROM appointments"
         );
-        $stmt->execute();
-        return $stmt->fetch();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     }
+
     public function getPrescriptionSummary(): array
     {
-        $stmt = $this->pdo->prepare(
+        $stmt = $this->pdo->query(
             "SELECT
                 COUNT(*) AS total,
-                SUM(CASE WHEN status = 'Pending' THEN 1 ELSE 0 END) AS pending,
-                SUM(CASE WHEN status = 'Verified' THEN 1 ELSE 0 END) AS verified,
-                SUM(CASE WHEN status = 'Dispensed' THEN 1 ELSE 0 END) AS dispensed,
-                SUM(CASE WHEN status = 'Cancelled' THEN 1 ELSE 0 END) AS cancelled
-            FROM prescriptions"
+                COALESCE(SUM(status = 'Pending'), 0) AS pending,
+                COALESCE(SUM(status = 'Verified'), 0) AS verified,
+                COALESCE(SUM(status = 'Dispensed'), 0) AS dispensed,
+                COALESCE(SUM(status = 'Cancelled'), 0) AS cancelled
+             FROM prescriptions"
         );
-        $stmt->execute();
-        return $stmt->fetch();
+
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
     }
+
     public function getRecentAppointments(): array
     {
-        $stmt = $this->pdo->prepare(
-            "SELECT * FROM appointments
-            ORDER BY id DESC
-            LIMIT 5"
+        $stmt = $this->pdo->query(
+            "SELECT
+                a.id,
+                a.patient_id,
+                a.provider_id,
+                a.appointment_date,
+                a.appointment_time,
+                a.status,
+                p.patient_name,
+                u.name AS provider_name
+             FROM appointments a
+             LEFT JOIN patients p
+                ON p.id = a.patient_id
+             LEFT JOIN users u
+                ON u.id = a.provider_id
+             ORDER BY a.id DESC
+             LIMIT 5"
         );
-        $stmt->execute();
-        return $stmt->fetchAll();
+
+        $appointments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        foreach ($appointments as &$appointment) {
+            if (!empty($appointment['patient_name'])) {
+                $appointment['patient_name'] =
+                    AES::decryptField($appointment['patient_name']);
+            }
+
+            if (!empty($appointment['provider_name'])) {
+                $appointment['provider_name'] =
+                    AES::decryptField($appointment['provider_name']);
+            }
+        }
+
+        unset($appointment);
+
+        return $appointments;
     }
 }

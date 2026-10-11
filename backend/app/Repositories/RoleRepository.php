@@ -69,4 +69,28 @@ class RoleRepository
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    public function getRolesForUsers(array $userIds): array
+{
+    if (empty($userIds)) {
+        return [];
+    }
+
+    $placeholders = implode(',', array_fill(0, count($userIds), '?'));
+
+    $stmt = $this->db->prepare(
+        "SELECT ur.user_id, r.name
+         FROM user_roles ur
+         INNER JOIN roles r ON r.id = ur.role_id
+         WHERE ur.user_id IN ($placeholders)"
+    );
+    $stmt->execute(array_values($userIds));
+
+    $map = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $map[(int) $row['user_id']][] = $row['name'];
+    }
+
+    return $map;
+}
 }

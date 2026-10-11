@@ -183,21 +183,17 @@ class UserService
             ? $this->userRepository->findAllByRole($role)
             : $this->userRepository->findAll();
 
-        foreach ($users as &$user) {
+$rolesByUser = $this->roleRepository->getRolesForUsers(
+    array_map('intval', array_column($users, 'id'))
+);
 
-            // Never return password
-            unset($user['password']);
+foreach ($users as &$user) {
+    // Never return password
+    unset($user['password']);
 
-            // Add roles
-            $user['roles'] = array_column(
-                $this->roleRepository->getRolesForUser(
-                    (int) $user['id']
-                ),
-                'name'
-            );
-        }
-
-        unset($user);
+    $user['roles'] = $rolesByUser[(int) $user['id']] ?? [];
+}
+unset($user);
 
         return $users;
     }

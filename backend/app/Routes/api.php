@@ -117,33 +117,29 @@ function getSubdomainFromHost(): string
 }
 
 // ---------------------------------------------------GET /csrf-token---------------------------------------------
-
 if ($method === 'GET' && str_contains($path, '/csrf-token')) {
-    $token = CSRF::generate();
-    $_SESSION['csrf_token'] = $token;
 
- Response::success( ['csrf_token' => $token], 'CSRF token generated');
+
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = CSRF::generate();
+    }
+
+    Response::success(
+        ['csrf_token' => $_SESSION['csrf_token']],
+        'CSRF token generated'
+    );
     exit;
 }
 
-/* -------------------------------------------------Public routes --------------------------------------------------------------*/
 
+/* -------------------------------------------------Public routes --------------------------------------------------------------*/
 $isPublicRoute =
     str_contains($path, '/tenant/register') ||
-    // str_contains($path, '/register') ||
     str_contains($path, '/login') ||
-    str_contains($path, '/refresh') ;
+    str_contains($path, '/refresh');
 
-/* CSRF */
 
-// if (
-//     !$isPublicRoute ||
-//     str_contains($path, '/login') ||
-//     str_contains($path, '/tenant/register') ||
-//     str_contains($path, '/refresh') 
-// ) {
-    CsrfMiddleware::handle();
-// }
+CsrfMiddleware::handle();
 
 //------------------------------------------------------ POST /tenant/register---------------------------------------------------
 
@@ -158,7 +154,7 @@ if ($method === 'POST' && preg_match('#^/tenant/register/?$#', $path)) {
     exit;
 }
 
-
+//-----------------------------------------------------  GET  /tenant/config ---------------------------------------------------
 if ($method === 'GET' && preg_match('#^/tenant/config/?$#', $path)) {
 
     $subdomain = getSubdomainFromHost();
@@ -427,11 +423,7 @@ if ($method === 'GET' && preg_match('#/users/(\d+)/?$#', $path, $matches)) {
 /*------------------------------------------------ PATIENT MANAGEMENT------------------------------------------------------ */
 
 if ($method === 'GET' && preg_match('#/patients/?$#', $path)) {
-    RoleMiddleware::handle(
-        $payload,
-      ['Admin', 'Provider', 'Nurse'],
-        $tenantPdo
-    );
+RoleMiddleware::handle($payload, ['Admin', 'Provider', 'Nurse'], $tenantPdo);
 
     // ?page=N (defaults to 1). The batch size is fixed server-side, so a
     // client-supplied limit is intentionally not read.
@@ -505,6 +497,7 @@ if ($method === 'DELETE' && preg_match('#/patients/(\d+)/?$#', $path, $matches))
     exit;
 }
 
+
 /*------------------------------------------------ NOTIFICATION ROUTES ------------------------------------------------*/
 
 if ($method === 'GET' && preg_match('#^/notifications/?$#', $path)) {
@@ -532,29 +525,23 @@ if ($method === 'GET' && preg_match('#^/notifications/?$#', $path)) {
 
         $stmt->execute([$userId]);
 
-        $notifications = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
         Response::success(
-            $notifications,
+            $stmt->fetchAll(PDO::FETCH_ASSOC),
             'Notifications fetched successfully',
             200
         );
     } catch (Exception $e) {
-        Response::error(
-            $e->getMessage(),
-            400
-        );
+        Response::error($e->getMessage(), 400);
     }
 
     exit;
 }
-
 /*-------------------------------------------------- APPOINTMENT MANAGEMEN----------------------------------------------------T */
 
 if ($method === 'GET' && preg_match('#/appointments/?$#', $path)) {
     RoleMiddleware::handle(
         $payload,
-        ['Admin', 'Provider', 'Nurse'],
+        ['Provider', 'Nurse','Admin'],
         $tenantPdo
     );
 
@@ -1285,6 +1272,77 @@ if ($method === 'GET' && preg_match('#^/billing/summary/?$#', $path)) {
         $controller = new BillingController($tenantPdo);
 
         $result = $controller->getPaymentSummary();
+
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+
+    exit;
+}
+
+
+// ========================================
+// INVOICE FORM OPTIONS (dropdowns)
+// GET /billing/patient-options
+// GET /billing/appointment-options?patient_id=N
+// ========================================
+
+if ($method === 'GET' && preg_match('#^/billing/patient-options/?$#', $path)) {
+
+    RoleMiddleware::handle(
+        $payload,
+        ['Admin', 'Provider'],
+        $tenantPdo
+    );
+
+    try {
+
+        $controller = new BillingController($tenantPdo);
+
+        $result = $controller->getPatientOptions();
+
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+
+    exit;
+}
+
+if ($method === 'GET' && preg_match('#^/billing/appointment-options/?$#', $path)) {
+
+    RoleMiddleware::handle(
+        $payload,
+        ['Admin', 'Provider'],
+        $tenantPdo
+    );
+
+    try {
+
+        $controller = new BillingController($tenantPdo);
+
+        $result = $controller->getAppointmentOptions(
+            (int) ($_GET['patient_id'] ?? 0)
+        );
 
         Response::success(
             $result['data'],
