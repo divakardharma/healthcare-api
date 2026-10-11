@@ -246,6 +246,7 @@ CREATE TABLE billing (
         ON DELETE SET NULL
 );
 
+CREATE INDEX idx_billing_status_amount ON billing (payment_status, amount);
 
 -- ============================================
 -- 11. STAFF

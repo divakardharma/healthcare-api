@@ -130,6 +130,39 @@ public function getAllInvoices(): array
         );
     }
     // ========================================
+    // Invoice form dropdown options
+    // ========================================
+    public function getPatientOptions(): array
+    {
+        return array_map(
+            fn (array $patient) => [
+                'id' => (int) $patient['id'],
+                'patient_name' => AES::decryptField($patient['patient_name'])
+            ],
+            $this->billingRepository->getPatientOptions()
+        );
+    }
+
+    public function getAppointmentOptions(int $patientId): array
+    {
+        if ($patientId <= 0) {
+            throw new Exception('Valid patient ID is required');
+        }
+
+        return array_map(
+            function (array $appointment) {
+                if (!empty($appointment['provider_name'])) {
+                    $appointment['provider_name'] =
+                        AES::decryptField($appointment['provider_name']);
+                }
+
+                return $appointment;
+            },
+            $this->billingRepository->getAppointmentOptions($patientId)
+        );
+    }
+
+    // ========================================
     // Get Payment Summary
     // ========================================
 public function getPaymentSummary(): array

@@ -1291,6 +1291,77 @@ if ($method === 'GET' && preg_match('#^/billing/summary/?$#', $path)) {
 }
 
 
+// ========================================
+// INVOICE FORM OPTIONS (dropdowns)
+// GET /billing/patient-options
+// GET /billing/appointment-options?patient_id=N
+// ========================================
+
+if ($method === 'GET' && preg_match('#^/billing/patient-options/?$#', $path)) {
+
+    RoleMiddleware::handle(
+        $payload,
+        ['Admin', 'Provider'],
+        $tenantPdo
+    );
+
+    try {
+
+        $controller = new BillingController($tenantPdo);
+
+        $result = $controller->getPatientOptions();
+
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+
+    exit;
+}
+
+if ($method === 'GET' && preg_match('#^/billing/appointment-options/?$#', $path)) {
+
+    RoleMiddleware::handle(
+        $payload,
+        ['Admin', 'Provider'],
+        $tenantPdo
+    );
+
+    try {
+
+        $controller = new BillingController($tenantPdo);
+
+        $result = $controller->getAppointmentOptions(
+            (int) ($_GET['patient_id'] ?? 0)
+        );
+
+        Response::success(
+            $result['data'],
+            $result['message'],
+            200
+        );
+
+    } catch (Exception $e) {
+
+        Response::error(
+            $e->getMessage(),
+            400
+        );
+    }
+
+    exit;
+}
+
+
 // GET BILLING BY ID
 // GET /billing/{id}
 if ($method === 'GET' && preg_match('#^/billing/(\d+)/?$#', $path, $matches)) {

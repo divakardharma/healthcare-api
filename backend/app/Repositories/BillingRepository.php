@@ -139,6 +139,49 @@ class BillingRepository
      * One aggregate scan returns all summary values.
      * COUNT(*) and conditional SUMs avoid separate queries per metric.
      */
+    /**
+     * Lightweight list for the invoice form dropdown: id + (encrypted) name only.
+     * Replaces loading the paginated /patients endpoint.
+     */
+    public function getPatientOptions(): array
+    {
+        $stmt = $this->pdo->query(
+            "SELECT id, patient_name
+             FROM patients
+             WHERE deleted_at IS NULL
+             ORDER BY id DESC"
+        );
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Appointments of ONE patient (uses the patient_id foreign-key index).
+     */
+    public function getAppointmentOptions(int $patientId): array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT
+                a.id,
+                a.patient_id,
+                a.appointment_date,
+                a.appointment_time,
+                a.status,
+                u.name AS provider_name
+             FROM appointments a
+             LEFT JOIN users u ON u.id = a.provider_id
+             WHERE a.patient_id = :patient_id
+             ORDER BY
+                a.appointment_date DESC,
+                a.appointment_time DESC,
+                a.id DESC"
+        );
+
+        $stmt->execute([':patient_id' => $patientId]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function getPaymentSummary(): array
     {
         $sql = "

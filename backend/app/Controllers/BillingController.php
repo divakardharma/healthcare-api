@@ -153,6 +153,27 @@ class BillingController
 
 
     // ========================================
+    // Invoice form dropdown options
+    // ========================================
+
+    public function getPatientOptions(): array
+    {
+        return [
+            'message' => 'Patients fetched successfully',
+            'data' => $this->billingService->getPatientOptions()
+        ];
+    }
+
+    public function getAppointmentOptions(int $patientId): array
+    {
+        return [
+            'message' => 'Appointments fetched successfully',
+            'data' => $this->billingService->getAppointmentOptions($patientId)
+        ];
+    }
+
+
+    // ========================================
     // Get Payment Summary
     // ========================================
 
